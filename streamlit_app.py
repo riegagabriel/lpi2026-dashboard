@@ -82,16 +82,18 @@ st.markdown("""
 # ─────────────────────────────────────────────
 # REEMPLAZA ESTA URL con la URL de tu Google Sheets publicado como CSV
 # Formato: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/export?format=csv&gid=SHEET_GID
+from io import BytesIO  # cambia StringIO por BytesIO
+
 GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTZg_SVgWbOOH6lIVBHZL-f6Xn2798eK7xE6IDGMdALdYmpQ6skscAq5xjfumiXvJHHLSapPA7A_tKV/pub?output=xlsx"
 
-@st.cache_data(ttl=300)  # refresca cada 5 minutos
+@st.cache_data(ttl=300)
 def cargar_datos(url: str) -> pd.DataFrame:
     try:
         response = requests.get(url, timeout=15)
         response.raise_for_status()
-        df = pd.read_excel(StringIO(response.text), dtype=str, low_memory=False)
+        df = pd.read_excel(BytesIO(response.content), dtype=str)  # .content no .text
     except Exception as e:
-        st.error(f"No se pudo cargar la hoja de Google Sheets: {e}\n\nVerifica que la URL esté correctamente configurada y que la hoja sea pública.")
+        st.error(f"No se pudo cargar la hoja de Google Sheets: {e}")
         st.stop()
     return df
 
