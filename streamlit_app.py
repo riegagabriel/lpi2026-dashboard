@@ -91,7 +91,7 @@ def cargar_datos(url: str) -> pd.DataFrame:
     try:
         response = requests.get(url, timeout=15)
         response.raise_for_status()
-        df = pd.read_excel(BytesIO(response.content), dtype=str)  # .content no .text
+        df = pd.read_excel(BytesIO(response.content), dtype=str, skiprows=1)  # .content no .text
     except Exception as e:
         st.error(f"No se pudo cargar la hoja de Google Sheets: {e}")
         st.stop()
