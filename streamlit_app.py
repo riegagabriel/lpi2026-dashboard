@@ -450,44 +450,33 @@ with col_charts:
         showlegend=True,
     )
     st.plotly_chart(fig_fecha, use_container_width=True)
-
-    # ── Gráfico 3: Estado del kit por departamento (barras pequeñas) ──
-    st.markdown('<div class="section-title" style="margin-top:6px">📦 Kit entregado al publicador</div>', unsafe_allow_html=True)
-    kit_col = "EL PUBLICADOR YA CUENTA CON EL KIT"
-    if kit_col in df.columns:
-        kit_dep = df.groupby("DEPARTAMENTO")[kit_col].apply(
-            lambda x: (x.str.strip().str.upper() == "SI").sum()
-        ).reset_index()
-        kit_dep.columns = ["Departamento", "Con Kit"]
-        total_dep = df.groupby("DEPARTAMENTO")["DISTRITO"].nunique().reset_index()
-        total_dep.columns = ["Departamento", "Total"]
-        kit_dep = kit_dep.merge(total_dep, on="Departamento")
-        kit_dep["% Kit"] = (kit_dep["Con Kit"] / kit_dep["Total"] * 100).round(1)
-        kit_dep = kit_dep.sort_values("% Kit", ascending=True).tail(12)
-
-        fig_kit = px.bar(
-            kit_dep,
-            x="% Kit",
-            y="Departamento",
-            orientation="h",
-            text="% Kit",
-            color="% Kit",
-            color_continuous_scale="Blues",
-            range_x=[0, 105],
-        )
-        fig_kit.update_traces(texttemplate="%{text}%", textposition="outside")
-        fig_kit.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            margin=dict(l=0, r=30, t=5, b=5),
-            height=260,
-            coloraxis_showscale=False,
-            xaxis_title="% con kit",
-            yaxis_title="",
-            font=dict(size=9),
-        )
-        st.plotly_chart(fig_kit, use_container_width=True)
-
+    
+# ── Tabla de Incidencias ──
+    st.markdown('<div class="section-title" style="margin-top:6px">🚨 Incidencias reportadas</div>', unsafe_allow_html=True)
+    
+    inc_col = "INCIDENCIAS"
+    if inc_col in df.columns:
+        df_inc = df[df[inc_col].notna() & (df[inc_col].str.strip() != "")][
+            ["DEPARTAMENTO", "DISTRITO", inc_col]
+        ].copy()
+        df_inc.columns = ["Departamento", "Distrito", "Incidencia"]
+        df_inc = df_inc.reset_index(drop=True)
+        
+        if len(df_inc) > 0:
+            st.dataframe(
+                df_inc,
+                use_container_width=True,
+                height=min(200, 40 + len(df_inc) * 35),
+                column_config={
+                    "Departamento": st.column_config.TextColumn("Departamento", width="small"),
+                    "Distrito":     st.column_config.TextColumn("Distrito",     width="small"),
+                    "Incidencia":   st.column_config.TextColumn("Incidencia",   width="large"),
+                }
+            )
+        else:
+            st.info("Sin incidencias registradas.", icon="✅")
+    else:
+        st.info("Columna INCIDENCIAS no encontrada.", icon="⚠️")
 # ─────────────────────────────────────────────
 # TABLA CON FILTROS
 # ─────────────────────────────────────────────
