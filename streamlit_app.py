@@ -90,7 +90,7 @@ GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTZg_SVgWbO
 @st.cache_data(ttl=30)
 def cargar_datos(url: str) -> pd.DataFrame:
     try:
-        df = pd.read_csv(url, dtype=str)
+        df = pd.read_csv(url, dtype=str, skiprows=1)
     except Exception as e:
         st.error(f"No se pudo cargar la hoja: {e}")
         st.stop()
