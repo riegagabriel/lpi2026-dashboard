@@ -211,7 +211,7 @@ st.markdown("""
 # FILA DE KPIs
 # ─────────────────────────────────────────────
 
-k1, k2, k3, k4, k5, k6, k7 = st.columns(8)
+k1, k2, k3, k4, k5, k6, k7 = st.columns(7)
 
 with k1:
     st.markdown(f"""
