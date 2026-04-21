@@ -451,23 +451,33 @@ with col_charts:
     )
     st.plotly_chart(fig_fecha, use_container_width=True)
     
-# ── Tabla de Incidencias ──
+# ── Tabla de Incidencias por día ──
 st.markdown(
     '<div class="section-title" style="margin-top:12px">🚨 Incidencias reportadas</div>',
     unsafe_allow_html=True
 )
 
-inc_col = "INCIDENCIAS"
+# Columnas de incidencias
+inc_cols = [
+    "INCIDENCIAS PREVIAS",
+    "INCIDENCIAS (22/04)",
+    "INCIDENCIAS (23/04)",
+    "INCIDENCIAS (24/04)",
+    "INCIDENCIAS (25/04)",
+    "INCIDENCIAS (26/04)",
+]
 
-if inc_col in df.columns:
-    df_inc = df[
-        df[inc_col].notna() & (df[inc_col].str.strip() != "")
-    ][["DEPARTAMENTO", "DISTRITO", inc_col]].copy()
+# Filtrar solo las que existen en el dataframe
+inc_cols = [c for c in inc_cols if c in df.columns]
 
-    df_inc.columns = ["Departamento", "Distrito", "Incidencia"]
-    df_inc = df_inc.reset_index(drop=True)
+if len(inc_cols) == 0:
+    st.info("No se encontraron columnas de incidencias.", icon="⚠️")
+else:
 
-    # 🔥 estilo: permitir texto multilínea
+    # 🔥 crear pestañas
+    tabs = st.tabs(inc_cols)
+
+    # CSS para texto multilínea
     st.markdown("""
         <style>
         .stDataFrame div[data-testid="stDataFrame"] td {
@@ -477,31 +487,31 @@ if inc_col in df.columns:
         </style>
     """, unsafe_allow_html=True)
 
-    if len(df_inc) > 0:
-        st.dataframe(
-            df_inc,
-            use_container_width=True,
-            height=500,  # 🔥 más aire visual
-            column_config={
-                "Departamento": st.column_config.TextColumn(
-                    "Departamento",
-                    width="small"
-                ),
-                "Distrito": st.column_config.TextColumn(
-                    "Distrito",
-                    width="small"
-                ),
-                "Incidencia": st.column_config.TextColumn(
-                    "Incidencia",
-                    width="large"
-                ),
-            }
-        )
-    else:
-        st.info("Sin incidencias registradas.", icon="✅")
+    # 🔁 recorrer cada pestaña
+    for tab, col in zip(tabs, inc_cols):
+        with tab:
 
-else:
-    st.info("Columna INCIDENCIAS no encontrada.", icon="⚠️")
+            df_inc = df[
+                df[col].notna() & (df[col].str.strip() != "")
+            ][["DEPARTAMENTO", "DISTRITO", col]].copy()
+
+            df_inc.columns = ["Departamento", "Distrito", "Incidencia"]
+            df_inc = df_inc.reset_index(drop=True)
+
+            if len(df_inc) > 0:
+                st.dataframe(
+                    df_inc,
+                    use_container_width=True,
+                    height=500,
+                    column_config={
+                        "Departamento": st.column_config.TextColumn("Departamento", width="small"),
+                        "Distrito": st.column_config.TextColumn("Distrito", width="small"),
+                        "Incidencia": st.column_config.TextColumn("Incidencia", width="large"),
+                    }
+                )
+            else:
+                st.info("Sin incidencias para este día.", icon="✅")
+
 # ─────────────────────────────────────────────
 # TABLA CON FILTROS
 # ─────────────────────────────────────────────
