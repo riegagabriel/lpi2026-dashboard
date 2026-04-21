@@ -453,7 +453,7 @@ with col_charts:
     
 # ── Tabla de Incidencias ──
 st.markdown(
-    '<div class="section-title" style="margin-top:10px">🚨 Incidencias reportadas</div>',
+    '<div class="section-title" style="margin-top:12px">🚨 Incidencias reportadas</div>',
     unsafe_allow_html=True
 )
 
@@ -467,14 +467,21 @@ if inc_col in df.columns:
     df_inc.columns = ["Departamento", "Distrito", "Incidencia"]
     df_inc = df_inc.reset_index(drop=True)
 
-    # 🔥 truncar texto largo para vista
-    df_inc["Incidencia_corta"] = df_inc["Incidencia"].str.slice(0, 120) + "..."
+    # 🔥 estilo: permitir texto multilínea
+    st.markdown("""
+        <style>
+        .stDataFrame div[data-testid="stDataFrame"] td {
+            white-space: normal !important;
+            word-wrap: break-word !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
     if len(df_inc) > 0:
         st.dataframe(
             df_inc,
             use_container_width=True,
-            height=420,  # 🔥 más espacio real
+            height=500,  # 🔥 más aire visual
             column_config={
                 "Departamento": st.column_config.TextColumn(
                     "Departamento",
@@ -485,21 +492,11 @@ if inc_col in df.columns:
                     width="small"
                 ),
                 "Incidencia": st.column_config.TextColumn(
-                    "Incidencia (detalle)",
-                    width="large",
-                    help="Texto completo de la incidencia"
+                    "Incidencia",
+                    width="large"
                 ),
             }
         )
-
-        # 🔽 vista detallada opcional
-        with st.expander("🔎 Ver incidencias completas"):
-            st.dataframe(
-                df_inc[["Departamento", "Distrito", "Incidencia"]],
-                use_container_width=True,
-                height=500
-            )
-
     else:
         st.info("Sin incidencias registradas.", icon="✅")
 
