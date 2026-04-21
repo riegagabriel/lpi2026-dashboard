@@ -86,7 +86,7 @@ from io import BytesIO  # cambia StringIO por BytesIO
 
 GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTZg_SVgWbOOH6lIVBHZL-f6Xn2798eK7xE6IDGMdALdYmpQ6skscAq5xjfumiXvJHHLSapPA7A_tKV/pub?output=xlsx"
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=60)
 def cargar_datos(url: str) -> pd.DataFrame:
     try:
         response = requests.get(url, timeout=15)
