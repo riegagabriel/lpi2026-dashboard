@@ -174,11 +174,6 @@ distritos_confirmados = df[df["PUBLICACION_CONFIRMADA"]]["DIST_KEY"].nunique()
 # ─────────────────────────────────────────────
 # KPIs GLOBALES
 # ─────────────────────────────────────────────
-total_distritos         = df["DISTRITO"].nunique()
-distritos_publicando    = df[df["PUBLICA"]]["DISTRITO"].nunique()
-distritos_agencia       = df[df["PUBLICA_AGENCIA"]]["DISTRITO"].nunique()
-distritos_publicador    = df[df["CON_PUBLICADOR"]]["DISTRITO"].nunique()
-distritos_confirmados   = df[df["PUBLICACION_CONFIRMADA"]]["DISTRITO"].nunique()
 
 # Columnas numéricas
 ciudadanos_enc  = pd.to_numeric(df.get("# DE CIUDADANOS ENCUESTADOS", pd.Series()), errors="coerce").sum()
