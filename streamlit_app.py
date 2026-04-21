@@ -286,7 +286,6 @@ with col_mapa:
         '<div class="section-title">🗺️ Mapa de distritos por departamento</div>',
         unsafe_allow_html=True
     )
-    st.write("Última actualización:", datetime.datetime.now())
 
     import json
     import plotly.express as px
@@ -586,9 +585,9 @@ rename_map = {
     "DESCRIPCIÓN":"PERSONAL",
     "FECHA DE INICIO DE PUBLICACIÓN": "F. Inicio",
     "FECHA DE FIN DE PUBLICACIÓN": "F. Fin",
-    "# DE CIUDADANOS ENCUESTADOS": "Ciudadanos",
-    "# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)": "Actas Def.",
-    "# DE TACHAS Y RECLAMOS": "Tachas/Reclamos",
+    "# DE CIUDADANOS ENCUESTADOS": "Ciudadanos encuestados",
+    "# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)": "# Actas Def.",
+    "# DE TACHAS Y RECLAMOS": "# Tachas/Reclamos",
 }
 df_mostrar = df_mostrar.rename(columns=rename_map)
 
