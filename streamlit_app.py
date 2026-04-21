@@ -25,10 +25,8 @@ st.set_page_config(
 # ─────────────────────────────────────────────
 st.markdown("""
 <style>
-    /* Fondo general */
     .main { background-color: #f4f6fb; }
-    
-    /* Encabezado */
+
     .header-bar {
         background: linear-gradient(90deg, #004a8f 0%, #0072c6 100%);
         color: white;
@@ -39,45 +37,41 @@ st.markdown("""
         align-items: center;
         justify-content: space-between;
     }
-    .header-bar h1 { margin: 0; font-size: 1.35rem; font-weight: 700; }
-    .header-bar p  { margin: 0; font-size: 0.82rem; opacity: 0.85; }
 
-    /* Value boxes */
+    /* KPI UNIFORMES */
     .kpi-card {
         background: white;
         border-radius: 10px;
-        padding: 14px 18px;
+        padding: 12px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         text-align: center;
-        border-left: 5px solid #0072c6;
-        height: 100%;
+        border-left: 6px solid #004a8f;
+
+        height: 110px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
-    .kpi-card.green  { border-left-color: #1a9e5c; }
-    .kpi-card.orange { border-left-color: #e07b00; }
-    .kpi-card.purple { border-left-color: #7b2d8b; }
-    .kpi-card.red    { border-left-color: #c0392b; }
-    .kpi-card.teal   { border-left-color: #007b8a; }
 
-    .kpi-value { font-size: 2rem; font-weight: 800; color: #1a2540; line-height: 1.1; }
-    .kpi-label { font-size: 0.72rem; color: #6b7a99; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
-    .kpi-sub   { font-size: 0.78rem; color: #3d8bcd; margin-top: 2px; }
+    /* Variaciones suaves de azul */
+    .kpi-card.blue2 { border-left-color: #0072c6; }
+    .kpi-card.blue3 { border-left-color: #2f80ed; }
+    .kpi-card.blue4 { border-left-color: #56a3ff; }
 
-    /* Sección de gráficos */
+    .kpi-value { font-size: 1.9rem; font-weight: 800; color: #1a2540; }
+    .kpi-label { font-size: 0.72rem; color: #6b7a99; margin-top: 4px; }
+    .kpi-sub   { font-size: 0.75rem; color: #0072c6; }
+
     .section-title {
         font-size: 0.88rem;
         font-weight: 700;
         color: #1a2540;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 8px;
-        border-bottom: 2px solid #0072c6;
+        border-bottom: 2px solid #004a8f;
         padding-bottom: 4px;
     }
 
-    /* Ocultar menú hamburguesa */
     #MainMenu, footer { visibility: hidden; }
-    
-    /* Reducir padding superior */
     .block-container { padding-top: 1rem !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -227,7 +221,7 @@ with k1:
 
 with k2:
     st.markdown(f"""
-    <div class="kpi-card green">
+    <div class="kpi-card blue2">
       <div class="kpi-value">{distritos_contratado}</div>
       <div class="kpi-label">PUBLICADORES</div>
       <div class="kpi-sub">Personal externo contratado</div>
@@ -235,7 +229,7 @@ with k2:
 
 with k3:
     st.markdown(f"""
-    <div class="kpi-card teal">
+    <div class="kpi-card blue3">
       <div class="kpi-value">{distritos_dre}</div>
       <div class="kpi-label">PUBLICADORES</div>
       <div class="kpi-sub">Personal DRE</div>
@@ -243,7 +237,7 @@ with k3:
 
 with k4:
     st.markdown(f"""
-    <div class="kpi-card orange">
+    <div class="kpi-card blue4">
       <div class="kpi-value">{distritos_agencia}</div>
       <div class="kpi-label">DISTRITOS</div>
       <div class="kpi-sub">Con Publicación en agencia</div>
@@ -278,7 +272,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ─────────────────────────────────────────────
 # FILA PRINCIPAL: MAPA + GRÁFICOS
 # ─────────────────────────────────────────────
-col_mapa, col_charts = st.columns([1.6, 1], gap="medium")
+col_mapa, col_charts = st.columns([2.2, 1], gap="medium")
 
 # ── MAPA ──────────────────────────────────────
 with col_mapa:
@@ -349,14 +343,15 @@ with col_mapa:
 
     # ── LAYOUT ──
     fig_map.update_geos(
-        fitbounds="locations",
-        visible=False
+    fitbounds="locations",
+    visible=False,
+    projection_scale=4.2
     )
 
     fig_map.update_layout(
-        height=520,
-        margin=dict(l=0, r=0, t=0, b=0),
-        coloraxis_colorbar=dict(title="N° distritos"),
+    height=650,
+    margin=dict(l=0, r=0, t=0, b=0),
+    coloraxis_colorbar=dict(title="N° distritos"),
     )
 
     # ── CENTROIDES ──
