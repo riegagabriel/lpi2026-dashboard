@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import json
 import requests
 from io import StringIO
+import datetime
 
 # ─────────────────────────────────────────────
 # CONFIGURACIÓN DE PÁGINA
@@ -272,6 +273,7 @@ col_mapa, col_charts = st.columns([1.6, 1], gap="medium")
 # ── MAPA ──────────────────────────────────────
 with col_mapa:
     st.markdown('<div class="section-title">🗺️ Mapa de publicación por departamento y distrito</div>', unsafe_allow_html=True)
+    st.write("Última versión:", datetime.datetime.now())
 
     # Coordenadas aproximadas de capitales departamentales (centroide)
     DEP_COORDS = {
