@@ -281,8 +281,6 @@ st.markdown("<br>", unsafe_allow_html=True)
 col_mapa, col_charts = st.columns([1.6, 1], gap="medium")
 
 # ── MAPA ──────────────────────────────────────
-
-# ── MAPA ──────────────────────────────────────
 with col_mapa:
     st.markdown(
         '<div class="section-title">🗺️ Mapa de distritos por departamento</div>',
@@ -298,25 +296,21 @@ with col_mapa:
     with open("peru_departamental_simple.geojson", "r", encoding="utf-8") as f:
         geojson = json.load(f)
 
-    # ── LIMPIEZA CLAVE (IMPORTANTE) ──
+    # ── LIMPIEZA ──
     df["DEPARTAMENTO"] = df["DEPARTAMENTO"].str.upper().str.strip()
     df["DISTRITO"] = df["DISTRITO"].str.strip()
+    df["DESCRIPCIÓN"] = df["DESCRIPCIÓN"].str.strip().str.upper()
 
-    # ── (OPCIONAL) SELECTOR DE MODO ──
+    # ── SELECTOR CORREGIDO ──
     modo = st.selectbox(
-        "Modo de visualización",
-        ["Todos", "Solo con publicador", "En agencia", "Confirmado"]
+        "Tipo de publicación",
+        ["Todos", "PERSONAL DRE", "CONTRATADO", "EN AGENCIA"]
     )
 
     df_map = df.copy()
 
-    if modo == "Solo con publicador":
-        df_map = df[df["DESCRIPCIÓN"].isin(["CONTRATADO", "PERSONAL DRE"])]
-    elif modo == "En agencia":
-        df_map = df[df["DESCRIPCIÓN"] == "EN AGENCIA"]
-    elif modo == "Confirmado":
-        kit_ok = df.get("EL PUBLICADOR YA CUENTA CON EL KIT", "").str.strip().str.upper() == "SI"
-        df_map = df[df["DESCRIPCIÓN"].isin(["CONTRATADO", "PERSONAL DRE"]) & kit_ok]
+    if modo != "Todos":
+        df_map = df[df["DESCRIPCIÓN"] == modo]
 
     # ── AGRUPACIÓN ──
     dep_data = (
@@ -324,12 +318,13 @@ with col_mapa:
         .groupby("DEPARTAMENTO")
         .agg(
             num_distritos=("DISTRITO", "nunique"),
-            distritos=("DISTRITO", lambda x: ", ".join(sorted(x.dropna().unique()[:20])))
+            # 🔥 LISTA VERTICAL
+            distritos=("DISTRITO", lambda x: "<br>".join(sorted(x.dropna().unique()[:25])))
         )
         .reset_index()
     )
 
-    # ── MAPA BASE (CHOROPLETH) ──
+    # ── MAPA BASE ──
     fig_map = px.choropleth(
         dep_data,
         geojson=geojson,
@@ -343,17 +338,17 @@ with col_mapa:
         ],
     )
 
-    # ── HOVER ──
+    # ── HOVER MEJORADO ──
     fig_map.update_traces(
         hovertemplate=(
             "<b>%{location}</b><br>"
             "Distritos: %{z}<br><br>"
-            "%{customdata}<extra></extra>"
+            "<b>Listado:</b><br>%{customdata}<extra></extra>"
         ),
         customdata=dep_data["distritos"]
     )
 
-    # ── ESTILO MAPA ──
+    # ── LAYOUT ──
     fig_map.update_geos(
         fitbounds="locations",
         visible=False
@@ -365,7 +360,7 @@ with col_mapa:
         coloraxis_colorbar=dict(title="N° distritos"),
     )
 
-    # ── CENTROIDES (para badges) ──
+    # ── CENTROIDES ──
     DEP_COORDS = {
         "AMAZONAS": {"lat": -5.5, "lon": -78.1},
         "ANCASH": {"lat": -9.53, "lon": -77.53},
@@ -392,7 +387,7 @@ with col_mapa:
         "UCAYALI": {"lat": -8.38, "lon": -74.55},
     }
 
-    # ── BADGES (número encima del mapa) ──
+    # ── BADGES ──
     for _, row in dep_data.iterrows():
         coords = DEP_COORDS.get(row["DEPARTAMENTO"], None)
         if coords:
@@ -411,7 +406,6 @@ with col_mapa:
                 hoverinfo="skip"
             ))
 
-    # ── RENDER ──
     st.plotly_chart(fig_map, use_container_width=True)
 
 # ── GRÁFICOS CIRCULARES ────────────────────────
