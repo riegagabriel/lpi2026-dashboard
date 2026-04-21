@@ -85,16 +85,14 @@ st.markdown("""
 # Formato: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/export?format=csv&gid=SHEET_GID
 from io import BytesIO  # cambia StringIO por BytesIO
 
-GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTZg_SVgWbOOH6lIVBHZL-f6Xn2798eK7xE6IDGMdALdYmpQ6skscAq5xjfumiXvJHHLSapPA7A_tKV/pub?output=xlsx"
+GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTZg_SVgWbOOH6lIVBHZL-f6Xn2798eK7xE6IDGMdALdYmpQ6skscAq5xjfumiXvJHHLSapPA7A_tKV/pub?output=csv"
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=30)
 def cargar_datos(url: str) -> pd.DataFrame:
     try:
-        response = requests.get(url, timeout=15)
-        response.raise_for_status()
-        df = pd.read_excel(BytesIO(response.content), dtype=str, skiprows=1)  # .content no .text
+        df = pd.read_csv(url, dtype=str)
     except Exception as e:
-        st.error(f"No se pudo cargar la hoja de Google Sheets: {e}")
+        st.error(f"No se pudo cargar la hoja: {e}")
         st.stop()
     return df
 
