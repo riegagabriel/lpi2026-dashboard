@@ -583,28 +583,22 @@ COLS_TABLA = [
     "PROVINCIA",
     "DISTRITO",
     "DESCRIPCIÓN",
-    "EL PUBLICADOR YA CUENTA CON EL KIT",
     "PRESENCIA DEL JNE",
     "FECHA DE INICIO DE PUBLICACIÓN",
     "FECHA DE FIN DE PUBLICACIÓN",
-    "ACTA DE APERTURA VALIDADA",
-    "ACTA DE CIERRE VALIDADA",
     "# DE CIUDADANOS ENCUESTADOS",
     "# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)",
     "# DE TACHAS Y RECLAMOS",
-    "INCIDENCIAS",
 ]
 cols_pres = [c for c in COLS_TABLA if c in df_tab.columns]
 df_mostrar = df_tab[cols_pres].reset_index(drop=True)
 
 # Renombrar para tabla compacta
-rename_map = {
-    "EL PUBLICADOR YA CUENTA CON EL KIT": "Kit",
-    "PRESENCIA DEL JNE": "JNE",
+rename_map = {-
+    "PRESENCIA DEL JNE": "¿Presencia del JNE?",
+    "DESCRIPCIÓN":"PERSONAL",
     "FECHA DE INICIO DE PUBLICACIÓN": "F. Inicio",
     "FECHA DE FIN DE PUBLICACIÓN": "F. Fin",
-    "ACTA DE APERTURA VALIDADA": "Acta Apertura",
-    "ACTA DE CIERRE VALIDADA": "Acta Cierre",
     "# DE CIUDADANOS ENCUESTADOS": "Ciudadanos",
     "# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)": "Actas Def.",
     "# DE TACHAS Y RECLAMOS": "Tachas/Reclamos",
@@ -620,6 +614,6 @@ st.dataframe(df_mostrar, use_container_width=True, height=380)
 st.markdown("""
 <div style="text-align:center; font-size:0.72rem; color:#aab4c2; margin-top:20px; border-top:1px solid #e0e4ef; padding-top:10px;">
   RENIEC Electoral · Subdirección de Procedimiento Electoral y Georreferenciación (SDPEG) · Dirección de Registro Electoral (DRE)<br>
-  Datos actualizados automáticamente desde Google Sheets
+  Datos actualizados automáticamente cada 5 min
 </div>
 """, unsafe_allow_html=True)
