@@ -272,7 +272,15 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ─────────────────────────────────────────────
 # FILA PRINCIPAL: MAPA + GRÁFICOS
 # ─────────────────────────────────────────────
-col_mapa, col_charts = st.columns([2.2, 1], gap="medium")
+# MAPA SOLO (pantalla completa horizontal)
+st.markdown('<div class="section-title">🗺️ Mapa de distritos por departamento</div>', unsafe_allow_html=True)
+
+# aquí va TODO tu código de mapa
+st.plotly_chart(fig_map, use_container_width=True)
+
+# luego recién los gráficos
+col1, col2 = st.columns(2)
+
 
 # ── MAPA ──────────────────────────────────────
 with col_mapa:
