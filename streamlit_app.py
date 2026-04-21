@@ -145,18 +145,32 @@ df = limpiar(df_raw)
 # LÓGICA DE NEGOCIO
 # ─────────────────────────────────────────────
 
-# Un distrito "publica" si la descripción es CONTRATADO o PERSONAL DRE  (no DESISTIO / EN AGENCIA sin kit)
-df["PUBLICA"] = df["DESCRIPCIÓN"].isin(["CONTRATADO", "PERSONAL DRE"])
+# Clave única por distrito: Provincia + Distrito
+df["DIST_KEY"] = df["PROVINCIA"].str.strip() + " | " + df["DISTRITO"].str.strip()
 
-# Publicación EN AGENCIA = descripción EN AGENCIA
+# Total distritos únicos (ahora son 404)
+total_distritos = df["DIST_KEY"].nunique()
+
+# Distritos publicando: basado en la columna "¿SE REALIZÓ LA PUBLICACIÓN?"
+pub_col = next((c for c in df.columns if "SE REALIZ" in c and "PUBLICACI" in c), None)
+if pub_col:
+    distritos_publicando = df[df[pub_col].str.strip().str.upper() == "SI"]["DIST_KEY"].nunique()
+else:
+    distritos_publicando = 0
+
+# Distritos EN AGENCIA: basado en columna DESCRIPCIÓN
 df["PUBLICA_AGENCIA"] = df["DESCRIPCIÓN"] == "EN AGENCIA"
+distritos_agencia = df[df["PUBLICA_AGENCIA"]]["DIST_KEY"].nunique()
 
-# Publicación con publicador = PUBLICA (tiene publicador asignado)
-df["CON_PUBLICADOR"] = df["DESCRIPCIÓN"].isin(["CONTRATADO", "PERSONAL DRE"])
+# Publicación con publicador = CONTRATADO o PERSONAL DRE
+df["PUBLICA"] = df["DESCRIPCIÓN"].isin(["CONTRATADO", "PERSONAL DRE"])
+df["CON_PUBLICADOR"] = df["PUBLICA"]
 
-# Publicación confirmada = el publicador ya cuenta con el kit y publicó
+# Kit entregado y publicación confirmada
 kit_ok = df.get("EL PUBLICADOR YA CUENTA CON EL KIT", pd.Series(dtype=str)).str.strip().str.upper() == "SI"
 df["PUBLICACION_CONFIRMADA"] = df["PUBLICA"] & kit_ok
+distritos_publicador = df[df["CON_PUBLICADOR"]]["DIST_KEY"].nunique()
+distritos_confirmados = df[df["PUBLICACION_CONFIRMADA"]]["DIST_KEY"].nunique()
 
 # ─────────────────────────────────────────────
 # KPIs GLOBALES
