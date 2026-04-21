@@ -594,7 +594,7 @@ cols_pres = [c for c in COLS_TABLA if c in df_tab.columns]
 df_mostrar = df_tab[cols_pres].reset_index(drop=True)
 
 # Renombrar para tabla compacta
-rename_map = {-
+rename_map = {
     "PRESENCIA DEL JNE": "¿Presencia del JNE?",
     "DESCRIPCIÓN":"PERSONAL",
     "FECHA DE INICIO DE PUBLICACIÓN": "F. Inicio",
