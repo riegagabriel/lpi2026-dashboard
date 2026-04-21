@@ -144,32 +144,44 @@ df = limpiar(df_raw)
 # LÓGICA DE NEGOCIO
 # ─────────────────────────────────────────────
 
-# Clave única por distrito: Provincia + Distrito
+# Clave única por distrito
 df["DIST_KEY"] = df["PROVINCIA"].str.strip() + " | " + df["DISTRITO"].str.strip()
 
-# Total distritos únicos (ahora son 404)
+# Total distritos únicos
 total_distritos = df["DIST_KEY"].nunique()
 
-# Distritos publicando: basado en la columna "¿SE REALIZÓ LA PUBLICACIÓN?"
-pub_col = next((c for c in df.columns if "SE REALIZ" in c and "PUBLICACI" in c), None)
+# Distritos publicando: columna ¿SE REALIZÓ LA PUBLICACIÓN?
+pub_col = next((c for c in df.columns if "SE REALIZ" in c.upper() and "PUBLICACI" in c.upper()), None)
 if pub_col:
     distritos_publicando = df[df[pub_col].str.strip().str.upper() == "SI"]["DIST_KEY"].nunique()
 else:
     distritos_publicando = 0
 
-# Distritos EN AGENCIA: basado en columna DESCRIPCIÓN
+# EN AGENCIA
 df["PUBLICA_AGENCIA"] = df["DESCRIPCIÓN"] == "EN AGENCIA"
 distritos_agencia = df[df["PUBLICA_AGENCIA"]]["DIST_KEY"].nunique()
 
-# Publicación con publicador = CONTRATADO o PERSONAL DRE
-df["PUBLICA"] = df["DESCRIPCIÓN"].isin(["CONTRATADO", "PERSONAL DRE"])
-df["CON_PUBLICADOR"] = df["PUBLICA"]
+# CONTRATADO
+df["PUBLICA_CONTRATADO"] = df["DESCRIPCIÓN"] == "CONTRATADO"
+distritos_contratado = df[df["PUBLICA_CONTRATADO"]]["DIST_KEY"].nunique()
 
-# Kit entregado y publicación confirmada
+# PERSONAL DRE
+df["PUBLICA_DRE"] = df["DESCRIPCIÓN"] == "PERSONAL DRE"
+distritos_dre = df[df["PUBLICA_DRE"]]["DIST_KEY"].nunique()
+
+# DESISTIÓ
+distritos_desistio = df[df["DESCRIPCIÓN"] == "DESISTIO"]["DIST_KEY"].nunique()
+
+# Kit entregado
+df["PUBLICA"] = df["DESCRIPCIÓN"].isin(["CONTRATADO", "PERSONAL DRE"])
 kit_ok = df.get("EL PUBLICADOR YA CUENTA CON EL KIT", pd.Series(dtype=str)).str.strip().str.upper() == "SI"
 df["PUBLICACION_CONFIRMADA"] = df["PUBLICA"] & kit_ok
-distritos_publicador = df[df["CON_PUBLICADOR"]]["DIST_KEY"].nunique()
 distritos_confirmados = df[df["PUBLICACION_CONFIRMADA"]]["DIST_KEY"].nunique()
+
+# Columnas numéricas
+ciudadanos_enc = pd.to_numeric(df.get("# DE CIUDADANOS ENCUESTADOS", pd.Series()), errors="coerce").sum()
+actas_def      = pd.to_numeric(df.get("# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)", pd.Series()), errors="coerce").sum()
+tachas_rec     = pd.to_numeric(df.get("# DE TACHAS Y RECLAMOS", pd.Series()), errors="coerce").sum()
 
 # ─────────────────────────────────────────────
 # KPIs GLOBALES
@@ -198,38 +210,39 @@ st.markdown("""
 # ─────────────────────────────────────────────
 # FILA DE KPIs
 # ─────────────────────────────────────────────
-k1, k2, k3, k4, k5, k6, k7 = st.columns(7)
+
+k1, k2, k3, k4, k5, k6, k7, k8 = st.columns(8)
 
 with k1:
     st.markdown(f"""
     <div class="kpi-card">
       <div class="kpi-value">{total_distritos}</div>
       <div class="kpi-label">Total Distritos</div>
-      <div class="kpi-sub">en el padrón</div>
+      <div class="kpi-sub">con publicación de LPI</div>
     </div>""", unsafe_allow_html=True)
 
 with k2:
     st.markdown(f"""
     <div class="kpi-card green">
-      <div class="kpi-value">{distritos_publicando}</div>
-      <div class="kpi-label">Publicando</div>
-      <div class="kpi-sub">con publicador o agencia</div>
+      <div class="kpi-value">{distritos_contratado}</div>
+      <div class="kpi-label">Con Publicador</div>
+      <div class="kpi-sub">externo contratado</div>
     </div>""", unsafe_allow_html=True)
 
 with k3:
     st.markdown(f"""
-    <div class="kpi-card orange">
-      <div class="kpi-value">{distritos_agencia}</div>
-      <div class="kpi-label">En Agencia</div>
-      <div class="kpi-sub">sin publicador externo</div>
+    <div class="kpi-card teal">
+      <div class="kpi-value">{distritos_dre}</div>
+      <div class="kpi-label">Personal DRE</div>
+      <div class="kpi-sub">publicando</div>
     </div>""", unsafe_allow_html=True)
 
 with k4:
     st.markdown(f"""
-    <div class="kpi-card purple">
-      <div class="kpi-value">{distritos_confirmados}</div>
-      <div class="kpi-label">Kit Entregado</div>
-      <div class="kpi-sub">publicación confirmada</div>
+    <div class="kpi-card orange">
+      <div class="kpi-value">{distritos_agencia}</div>
+      <div class="kpi-label">En Agencia</div>
+      <div class="kpi-sub">publicación en agencia</div>
     </div>""", unsafe_allow_html=True)
 
 with k5:
@@ -245,7 +258,7 @@ with k6:
     <div class="kpi-card">
       <div class="kpi-value">{int(actas_def) if not pd.isna(actas_def) else '—'}</div>
       <div class="kpi-label">Actas de Defunción</div>
-      <div class="kpi-sub">entregadas por municipalidad</div>
+      <div class="kpi-sub">entregadas municipalidad</div>
     </div>""", unsafe_allow_html=True)
 
 with k7:
@@ -254,6 +267,14 @@ with k7:
       <div class="kpi-value">{int(tachas_rec) if not pd.isna(tachas_rec) else '—'}</div>
       <div class="kpi-label">Tachas y Reclamos</div>
       <div class="kpi-sub">presentados</div>
+    </div>""", unsafe_allow_html=True)
+
+with k8:
+    st.markdown(f"""
+    <div class="kpi-card purple">
+      <div class="kpi-value">{distritos_desistio}</div>
+      <div class="kpi-label">Desistieron</div>
+      <div class="kpi-sub">sin publicación</div>
     </div>""", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
