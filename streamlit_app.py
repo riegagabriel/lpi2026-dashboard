@@ -556,11 +556,6 @@ with f2:
         provs = sorted(df["PROVINCIA"].dropna().unique().tolist())
     sel_prov = st.multiselect("Provincia", provs, placeholder="Todas las provincias")
 
-with f3:
-    sel_publica = st.selectbox(
-        "Estado de publicación",
-        ["Todos", "Con publicador", "En agencia", "Kit entregado", "Desistió"],
-    )
 
 # Filtrar
 df_tab = df.copy()
@@ -568,15 +563,7 @@ if sel_dept:
     df_tab = df_tab[df_tab["DEPARTAMENTO"].isin(sel_dept)]
 if sel_prov:
     df_tab = df_tab[df_tab["PROVINCIA"].isin(sel_prov)]
-if sel_publica == "Con publicador":
-    df_tab = df_tab[df_tab["CON_PUBLICADOR"]]
-elif sel_publica == "En agencia":
-    df_tab = df_tab[df_tab["PUBLICA_AGENCIA"]]
-elif sel_publica == "Kit entregado":
-    df_tab = df_tab[df_tab["PUBLICACION_CONFIRMADA"]]
-elif sel_publica == "Desistió":
-    df_tab = df_tab[df_tab["DESCRIPCIÓN"] == "DESISTIO"]
-
+    
 # Columnas a mostrar
 COLS_TABLA = [
     "DEPARTAMENTO",
