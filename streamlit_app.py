@@ -282,76 +282,137 @@ col_mapa, col_charts = st.columns([1.6, 1], gap="medium")
 
 # ── MAPA ──────────────────────────────────────
 
-# cargar geojson
-with open("peru_departamental_simple.geojson", "r", encoding="utf-8") as f:
-    geojson = json.load(f)
-
-# ── DATA ──
-dep_data = (
-    df[df["PUBLICA"]]
-    .groupby("DEPARTAMENTO")
-    .agg(
-        num_distritos=("DISTRITO", "nunique"),
-        distritos=("DISTRITO", lambda x: ", ".join(sorted(x.dropna().unique()[:20])))
+# ── MAPA ──────────────────────────────────────
+with col_mapa:
+    st.markdown(
+        '<div class="section-title">🗺️ Mapa de distritos por departamento</div>',
+        unsafe_allow_html=True
     )
-    .reset_index()
-)
+    st.write("Última actualización:", datetime.datetime.now())
 
-# 🔥 asegurar mayúsculas para match con geojson
-dep_data["DEPARTAMENTO"] = dep_data["DEPARTAMENTO"].str.upper()
+    import json
+    import plotly.express as px
+    import plotly.graph_objects as go
 
-# ── MAPA BASE ──
-fig_map = px.choropleth(
-    dep_data,
-    geojson=geojson,
-    locations="DEPARTAMENTO",
-    featureidkey="properties.NOMBDEP",
-    color="num_distritos",
-    color_continuous_scale="Blues",
-)
+    # ── CARGAR GEOJSON ──
+    with open("peru_departamental_simple.geojson", "r", encoding="utf-8") as f:
+        geojson = json.load(f)
 
-# ── HOVER ──
-fig_map.update_traces(
-    hovertemplate=(
-        "<b>%{location}</b><br>"
-        "Distritos: %{z}<br><br>"
-        "%{customdata}<extra></extra>"
-    ),
-    customdata=dep_data["distritos"]
-)
+    # ── LIMPIEZA CLAVE (IMPORTANTE) ──
+    df["DEPARTAMENTO"] = df["DEPARTAMENTO"].str.upper().str.strip()
+    df["DISTRITO"] = df["DISTRITO"].str.strip()
 
-# ── LAYOUT LIMPIO ──
-fig_map.update_geos(
-    fitbounds="locations",
-    visible=False
-)
+    # ── (OPCIONAL) SELECTOR DE MODO ──
+    modo = st.selectbox(
+        "Modo de visualización",
+        ["Todos", "Solo con publicador", "En agencia", "Confirmado"]
+    )
 
-fig_map.update_layout(
-    height=520,
-    margin=dict(l=0, r=0, t=0, b=0),
-    coloraxis_colorbar=dict(title="Distritos"),
-)
+    df_map = df.copy()
 
-# ── BADGES (cuadritos con número) ──
-for _, row in dep_data.iterrows():
-    coords = DEP_COORDS.get(row["DEPARTAMENTO"], None)
-    if coords:
-        fig_map.add_trace(go.Scattergeo(
-            lon=[coords["lon"]],
-            lat=[coords["lat"]],
-            mode="markers+text",
-            text=[str(row["num_distritos"])],
-            textfont=dict(size=10, color="white"),
-            marker=dict(
-                size=28,
-                color="#003f7f",
-                line=dict(color="white", width=1)
-            ),
-            showlegend=False,
-            hoverinfo="skip"
-        ))
+    if modo == "Solo con publicador":
+        df_map = df[df["DESCRIPCIÓN"].isin(["CONTRATADO", "PERSONAL DRE"])]
+    elif modo == "En agencia":
+        df_map = df[df["DESCRIPCIÓN"] == "EN AGENCIA"]
+    elif modo == "Confirmado":
+        kit_ok = df.get("EL PUBLICADOR YA CUENTA CON EL KIT", "").str.strip().str.upper() == "SI"
+        df_map = df[df["DESCRIPCIÓN"].isin(["CONTRATADO", "PERSONAL DRE"]) & kit_ok]
 
-st.plotly_chart(fig_map, use_container_width=True)
+    # ── AGRUPACIÓN ──
+    dep_data = (
+        df_map
+        .groupby("DEPARTAMENTO")
+        .agg(
+            num_distritos=("DISTRITO", "nunique"),
+            distritos=("DISTRITO", lambda x: ", ".join(sorted(x.dropna().unique()[:20])))
+        )
+        .reset_index()
+    )
+
+    # ── MAPA BASE (CHOROPLETH) ──
+    fig_map = px.choropleth(
+        dep_data,
+        geojson=geojson,
+        locations="DEPARTAMENTO",
+        featureidkey="properties.NOMBDEP",
+        color="num_distritos",
+        color_continuous_scale=[
+            [0, "#dce6f2"],
+            [0.5, "#6ea8fe"],
+            [1, "#003f7f"]
+        ],
+    )
+
+    # ── HOVER ──
+    fig_map.update_traces(
+        hovertemplate=(
+            "<b>%{location}</b><br>"
+            "Distritos: %{z}<br><br>"
+            "%{customdata}<extra></extra>"
+        ),
+        customdata=dep_data["distritos"]
+    )
+
+    # ── ESTILO MAPA ──
+    fig_map.update_geos(
+        fitbounds="locations",
+        visible=False
+    )
+
+    fig_map.update_layout(
+        height=520,
+        margin=dict(l=0, r=0, t=0, b=0),
+        coloraxis_colorbar=dict(title="N° distritos"),
+    )
+
+    # ── CENTROIDES (para badges) ──
+    DEP_COORDS = {
+        "AMAZONAS": {"lat": -5.5, "lon": -78.1},
+        "ANCASH": {"lat": -9.53, "lon": -77.53},
+        "APURIMAC": {"lat": -14.05, "lon": -73.09},
+        "AREQUIPA": {"lat": -16.41, "lon": -71.54},
+        "AYACUCHO": {"lat": -13.16, "lon": -74.22},
+        "CAJAMARCA": {"lat": -7.16, "lon": -78.51},
+        "CUSCO": {"lat": -13.52, "lon": -71.97},
+        "HUANCAVELICA": {"lat": -12.79, "lon": -74.97},
+        "HUANUCO": {"lat": -9.93, "lon": -76.24},
+        "ICA": {"lat": -14.07, "lon": -75.73},
+        "JUNIN": {"lat": -11.16, "lon": -75.23},
+        "LA LIBERTAD": {"lat": -8.12, "lon": -78.12},
+        "LAMBAYEQUE": {"lat": -6.77, "lon": -79.84},
+        "LIMA": {"lat": -12.04, "lon": -76.95},
+        "LORETO": {"lat": -4.0, "lon": -75.0},
+        "MADRE DE DIOS": {"lat": -11.0, "lon": -70.5},
+        "MOQUEGUA": {"lat": -17.19, "lon": -70.93},
+        "PASCO": {"lat": -10.66, "lon": -76.25},
+        "PIURA": {"lat": -5.19, "lon": -80.63},
+        "PUNO": {"lat": -15.84, "lon": -70.02},
+        "SAN MARTIN": {"lat": -7.0, "lon": -76.5},
+        "TACNA": {"lat": -18.01, "lon": -70.25},
+        "UCAYALI": {"lat": -8.38, "lon": -74.55},
+    }
+
+    # ── BADGES (número encima del mapa) ──
+    for _, row in dep_data.iterrows():
+        coords = DEP_COORDS.get(row["DEPARTAMENTO"], None)
+        if coords:
+            fig_map.add_trace(go.Scattergeo(
+                lon=[coords["lon"]],
+                lat=[coords["lat"]],
+                mode="markers+text",
+                text=[str(row["num_distritos"])],
+                textfont=dict(size=10, color="white"),
+                marker=dict(
+                    size=28,
+                    color="#003f7f",
+                    line=dict(color="white", width=1)
+                ),
+                showlegend=False,
+                hoverinfo="skip"
+            ))
+
+    # ── RENDER ──
+    st.plotly_chart(fig_map, use_container_width=True)
 
 # ── GRÁFICOS CIRCULARES ────────────────────────
 with col_charts:
