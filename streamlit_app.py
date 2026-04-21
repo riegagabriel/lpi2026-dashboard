@@ -198,11 +198,11 @@ tachas_rec      = pd.to_numeric(df.get("# DE TACHAS Y RECLAMOS", pd.Series()), e
 st.markdown("""
 <div class="header-bar">
   <div>
-    <h1>📋 Publicación de las Listas del Padrón Inicial – EG 2026</h1>
-    <p>RENIEC Electoral · Dirección de Registro Electoral (DRE) · Panel de seguimiento en tiempo real</p>
+    <h1>📋 Publicación de las Listas del Padrón Inicial – ERM 2026</h1>
+    <p>RENIEC Electoral · Dirección de Registro Electoral (DRE) · Panel de seguimiento de monitoreo</p>
   </div>
   <div style="text-align:right; font-size:0.78rem; opacity:0.85;">
-    Datos actualizados automáticamente<br>desde Google Sheets
+    Dashboard actualizado cada 5 min
   </div>
 </div>
 """, unsafe_allow_html=True)
