@@ -211,7 +211,7 @@ st.markdown("""
 # FILA DE KPIs
 # ─────────────────────────────────────────────
 
-k1, k2, k3, k4, k5, k6, k7, k8 = st.columns(8)
+k1, k2, k3, k4, k5, k6, k7 = st.columns(8)
 
 with k1:
     st.markdown(f"""
@@ -225,24 +225,24 @@ with k2:
     st.markdown(f"""
     <div class="kpi-card green">
       <div class="kpi-value">{distritos_contratado}</div>
-      <div class="kpi-label">Con Publicador</div>
-      <div class="kpi-sub">externo contratado</div>
+      <div class="kpi-label">PUBLICADORES</div>
+      <div class="kpi-sub">Personal externo contratado</div>
     </div>""", unsafe_allow_html=True)
 
 with k3:
     st.markdown(f"""
     <div class="kpi-card teal">
       <div class="kpi-value">{distritos_dre}</div>
-      <div class="kpi-label">Personal DRE</div>
-      <div class="kpi-sub">publicando</div>
+      <div class="kpi-label">PUBLICADORES</div>
+      <div class="kpi-sub">Personal DRE</div>
     </div>""", unsafe_allow_html=True)
 
 with k4:
     st.markdown(f"""
     <div class="kpi-card orange">
       <div class="kpi-value">{distritos_agencia}</div>
-      <div class="kpi-label">En Agencia</div>
-      <div class="kpi-sub">publicación en agencia</div>
+      <div class="kpi-label">DISTRITOS</div>
+      <div class="kpi-sub">Con Publicación en agencia</div>
     </div>""", unsafe_allow_html=True)
 
 with k5:
@@ -268,15 +268,7 @@ with k7:
       <div class="kpi-label">Tachas y Reclamos</div>
       <div class="kpi-sub">presentados</div>
     </div>""", unsafe_allow_html=True)
-
-with k8:
-    st.markdown(f"""
-    <div class="kpi-card purple">
-      <div class="kpi-value">{distritos_desistio}</div>
-      <div class="kpi-label">Desistieron</div>
-      <div class="kpi-sub">sin publicación</div>
-    </div>""", unsafe_allow_html=True)
-
+    
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
