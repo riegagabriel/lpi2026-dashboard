@@ -452,31 +452,59 @@ with col_charts:
     st.plotly_chart(fig_fecha, use_container_width=True)
     
 # ── Tabla de Incidencias ──
-    st.markdown('<div class="section-title" style="margin-top:6px">🚨 Incidencias reportadas</div>', unsafe_allow_html=True)
-    
-    inc_col = "INCIDENCIAS"
-    if inc_col in df.columns:
-        df_inc = df[df[inc_col].notna() & (df[inc_col].str.strip() != "")][
-            ["DEPARTAMENTO", "DISTRITO", inc_col]
-        ].copy()
-        df_inc.columns = ["Departamento", "Distrito", "Incidencia"]
-        df_inc = df_inc.reset_index(drop=True)
-        
-        if len(df_inc) > 0:
+st.markdown(
+    '<div class="section-title" style="margin-top:10px">🚨 Incidencias reportadas</div>',
+    unsafe_allow_html=True
+)
+
+inc_col = "INCIDENCIAS"
+
+if inc_col in df.columns:
+    df_inc = df[
+        df[inc_col].notna() & (df[inc_col].str.strip() != "")
+    ][["DEPARTAMENTO", "DISTRITO", inc_col]].copy()
+
+    df_inc.columns = ["Departamento", "Distrito", "Incidencia"]
+    df_inc = df_inc.reset_index(drop=True)
+
+    # 🔥 truncar texto largo para vista
+    df_inc["Incidencia_corta"] = df_inc["Incidencia"].str.slice(0, 120) + "..."
+
+    if len(df_inc) > 0:
+        st.dataframe(
+            df_inc,
+            use_container_width=True,
+            height=420,  # 🔥 más espacio real
+            column_config={
+                "Departamento": st.column_config.TextColumn(
+                    "Departamento",
+                    width="small"
+                ),
+                "Distrito": st.column_config.TextColumn(
+                    "Distrito",
+                    width="small"
+                ),
+                "Incidencia": st.column_config.TextColumn(
+                    "Incidencia (detalle)",
+                    width="large",
+                    help="Texto completo de la incidencia"
+                ),
+            }
+        )
+
+        # 🔽 vista detallada opcional
+        with st.expander("🔎 Ver incidencias completas"):
             st.dataframe(
-                df_inc,
+                df_inc[["Departamento", "Distrito", "Incidencia"]],
                 use_container_width=True,
-                height=min(200, 40 + len(df_inc) * 35),
-                column_config={
-                    "Departamento": st.column_config.TextColumn("Departamento", width="small"),
-                    "Distrito":     st.column_config.TextColumn("Distrito",     width="small"),
-                    "Incidencia":   st.column_config.TextColumn("Incidencia",   width="large"),
-                }
+                height=500
             )
-        else:
-            st.info("Sin incidencias registradas.", icon="✅")
+
     else:
-        st.info("Columna INCIDENCIAS no encontrada.", icon="⚠️")
+        st.info("Sin incidencias registradas.", icon="✅")
+
+else:
+    st.info("Columna INCIDENCIAS no encontrada.", icon="⚠️")
 # ─────────────────────────────────────────────
 # TABLA CON FILTROS
 # ─────────────────────────────────────────────
