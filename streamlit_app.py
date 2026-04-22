@@ -33,7 +33,6 @@ st.markdown("""
         justify-content: space-between;
     }
 
-    /* KPI UNIFORMES */
     .kpi-card {
         background: white;
         border-radius: 10px;
@@ -63,7 +62,6 @@ st.markdown("""
         padding-bottom: 4px;
     }
 
-    /* BARRA DE FILTROS GLOBALES */
     .filter-bar {
         background: white;
         border-radius: 10px;
@@ -71,13 +69,6 @@ st.markdown("""
         box-shadow: 0 2px 8px rgba(0,0,0,0.07);
         margin-bottom: 16px;
         border-left: 6px solid #0072c6;
-    }
-
-    /* Estilo radio horizontal compacto */
-    div[data-testid="stHorizontalBlock"] .stRadio > label {
-        font-size: 0.78rem !important;
-        font-weight: 600;
-        color: #1a2540;
     }
 
     #MainMenu, footer { visibility: hidden; }
@@ -88,8 +79,6 @@ st.markdown("""
 # ─────────────────────────────────────────────
 # CARGA DE DATOS
 # ─────────────────────────────────────────────
-from io import BytesIO
-
 GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTZg_SVgWbOOH6lIVBHZL-f6Xn2798eK7xE6IDGMdALdYmpQ6skscAq5xjfumiXvJHHLSapPA7A_tKV/pub?output=csv"
 
 @st.cache_data(ttl=30)
@@ -128,19 +117,21 @@ def limpiar(df: pd.DataFrame) -> pd.DataFrame:
         if c in df.columns:
             df[c] = pd.to_datetime(df[c], errors="coerce", dayfirst=True)
 
-    kit_col = "EL PUBLICADOR YA CUENTA CON EL KIT"
-    if kit_col in df.columns:
-        df["KIT_PUBLICADOR"] = df[kit_col].str.strip().str.upper()
-
     if "DESCRIPCIÓN" in df.columns:
         df["DESCRIPCIÓN"] = df["DESCRIPCIÓN"].str.strip().str.upper()
 
     return df
 
 df = limpiar(df_raw)
-df["DIST_KEY"] = df["PROVINCIA"].str.strip() + " | " + df["DISTRITO"].str.strip()
 df["DEPARTAMENTO"] = df["DEPARTAMENTO"].str.upper().str.strip()
-df["DISTRITO"] = df["DISTRITO"].str.strip()
+df["DISTRITO"]     = df["DISTRITO"].str.strip()
+
+# Clave única por distrito usando UBIGEO RENIEC
+# (evita colisiones entre distritos homónimos de distintas provincias)
+df["DIST_KEY"] = df["UBIGEO RENIEC"].astype(str).str.strip()
+
+# Denominador fijo: total de distritos únicos en toda la base
+TOTAL_DISTRITOS_GLOBAL = df["DIST_KEY"].nunique()   # 404
 
 # ─────────────────────────────────────────────
 # ENCABEZADO
@@ -158,22 +149,21 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# ★ BARRA DE FILTROS GLOBALES ★
+# ★ FILTROS GLOBALES — solo fecha y JNE ★
 # ─────────────────────────────────────────────
 st.markdown('<div class="filter-bar">', unsafe_allow_html=True)
-st.markdown("**🔎 Filtros globales** — aplican a KPIs, mapa, gráficos, tabla e incidencias")
+st.markdown("**🔎 Filtros globales**")
 
-fcol1, fcol2, fcol3 = st.columns([1.4, 1, 1.6])
+fcol1, fcol2 = st.columns([1.6, 1])
 
 with fcol1:
-    # Fechas disponibles en los datos
-    fechas_disponibles = (
+    # Fechas detectadas automáticamente desde los datos
+    fechas_disponibles = sorted(
         df["FECHA DE INICIO DE PUBLICACIÓN"]
         .dropna()
         .dt.normalize()
         .unique()
     )
-    fechas_disponibles = sorted(fechas_disponibles)
     etiquetas_fecha = ["Todas las fechas"] + [
         pd.Timestamp(f).strftime("%d/%m/%Y") for f in fechas_disponibles
     ]
@@ -192,77 +182,54 @@ with fcol2:
         key="filtro_jne",
     )
 
-with fcol3:
-    sel_tipo = st.radio(
-        "👤 Tipo de publicador",
-        ["Todos", "CONTRATADO", "PERSONAL DRE", "EN AGENCIA"],
-        horizontal=True,
-        key="filtro_tipo",
-    )
-
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# CONSTRUIR df_filtrado A PARTIR DE LOS 3 FILTROS
+# CONSTRUIR df_filtrado
 # ─────────────────────────────────────────────
 df_filtrado = df.copy()
 
-# Filtro 1: Fecha
 if sel_fecha_label != "Todas las fechas":
     fecha_sel = pd.to_datetime(sel_fecha_label, dayfirst=True).normalize()
     df_filtrado = df_filtrado[
         df_filtrado["FECHA DE INICIO DE PUBLICACIÓN"].dt.normalize() == fecha_sel
     ]
 
-# Filtro 2: JNE
 if sel_jne != "Todos":
     jne_val = "SI" if sel_jne == "Sí" else "NO"
     df_filtrado = df_filtrado[
         df_filtrado["PRESENCIA DEL JNE"].str.strip().str.upper() == jne_val
     ]
 
-# Filtro 3: Tipo publicador
-if sel_tipo != "Todos":
-    df_filtrado = df_filtrado[df_filtrado["DESCRIPCIÓN"] == sel_tipo]
-
-# Indicador visual de registros activos
-n_filtrados = len(df_filtrado)
-n_total = len(df)
-if n_filtrados < n_total:
-    st.info(
-        f"🔍 Filtros activos: mostrando **{n_filtrados}** de **{n_total}** registros",
-        icon="📊"
+# ─────────────────────────────────────────────
+# UNA FILA POR DISTRITO — base de todos los KPIs
+# ─────────────────────────────────────────────
+df_dist = (
+    df_filtrado
+    .sort_values("DESCRIPCIÓN")
+    .groupby("DIST_KEY", as_index=False)
+    .agg(
+        DESCRIPCION =("DESCRIPCIÓN",                    "first"),
+        JNE         =("PRESENCIA DEL JNE",              "first"),
+        SE_REALIZO  =("¿SE REALIZÓ LA PUBLICACIÓN?",    "first"),
+        FECHA_INICIO=("FECHA DE INICIO DE PUBLICACIÓN", "min"),
+        CIUDADANOS  =("# DE CIUDADANOS ENCUESTADOS",    "sum"),
+        ACTAS_DEF   =("# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)", "sum"),
+        TACHAS      =("# DE TACHAS Y RECLAMOS",         "sum"),
     )
-
-# ─────────────────────────────────────────────
-# LÓGICA DE NEGOCIO SOBRE df_filtrado
-# ─────────────────────────────────────────────
-total_distritos = df_filtrado["DIST_KEY"].nunique()
-
-pub_col = next(
-    (c for c in df_filtrado.columns if "SE REALIZ" in c.upper() and "PUBLICACI" in c.upper()),
-    None
 )
-if pub_col:
-    distritos_publicando = df_filtrado[
-        df_filtrado[pub_col].str.strip().str.upper() == "SI"
-    ]["DIST_KEY"].nunique()
-else:
-    distritos_publicando = 0
 
-distritos_agencia    = df_filtrado[df_filtrado["DESCRIPCIÓN"] == "EN AGENCIA"]["DIST_KEY"].nunique()
-distritos_contratado = df_filtrado[df_filtrado["DESCRIPCIÓN"] == "CONTRATADO"]["DIST_KEY"].nunique()
-distritos_dre        = df_filtrado[df_filtrado["DESCRIPCIÓN"] == "PERSONAL DRE"]["DIST_KEY"].nunique()
+total_distritos      = df_dist["DIST_KEY"].nunique()
+distritos_publicando = df_dist[
+    df_dist["SE_REALIZO"].str.strip().str.upper() == "SI"
+]["DIST_KEY"].nunique()
+distritos_contratado = df_dist[df_dist["DESCRIPCION"] == "CONTRATADO"]["DIST_KEY"].nunique()
+distritos_dre        = df_dist[df_dist["DESCRIPCION"] == "PERSONAL DRE"]["DIST_KEY"].nunique()
+distritos_agencia    = df_dist[df_dist["DESCRIPCION"] == "EN AGENCIA"]["DIST_KEY"].nunique()
 
-ciudadanos_enc = pd.to_numeric(
-    df_filtrado.get("# DE CIUDADANOS ENCUESTADOS", pd.Series()), errors="coerce"
-).sum()
-actas_def = pd.to_numeric(
-    df_filtrado.get("# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)", pd.Series()), errors="coerce"
-).sum()
-tachas_rec = pd.to_numeric(
-    df_filtrado.get("# DE TACHAS Y RECLAMOS", pd.Series()), errors="coerce"
-).sum()
+ciudadanos_enc = df_dist["CIUDADANOS"].sum()
+actas_def      = df_dist["ACTAS_DEF"].sum()
+tachas_rec     = df_dist["TACHAS"].sum()
 
 # ─────────────────────────────────────────────
 # FILA DE KPIs
@@ -274,7 +241,7 @@ with k1:
     <div class="kpi-card">
       <div class="kpi-value">{total_distritos}</div>
       <div class="kpi-label">Total Distritos</div>
-      <div class="kpi-sub">con publicación de LPI</div>
+      <div class="kpi-sub">de {TOTAL_DISTRITOS_GLOBAL} a nivel nacional</div>
     </div>""", unsafe_allow_html=True)
 
 with k2:
@@ -303,7 +270,7 @@ with k4:
 
 with k5:
     st.markdown(f"""
-    <div class="kpi-card teal">
+    <div class="kpi-card">
       <div class="kpi-value">{int(ciudadanos_enc) if not pd.isna(ciudadanos_enc) else '—'}</div>
       <div class="kpi-label">Ciudadanos Encuestados</div>
       <div class="kpi-sub">total nacional</div>
@@ -319,7 +286,7 @@ with k6:
 
 with k7:
     st.markdown(f"""
-    <div class="kpi-card red">
+    <div class="kpi-card">
       <div class="kpi-value">{int(tachas_rec) if not pd.isna(tachas_rec) else '—'}</div>
       <div class="kpi-label">Tachas y Reclamos</div>
       <div class="kpi-sub">presentados</div>
@@ -330,37 +297,30 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ─────────────────────────────────────────────
 # STORY CARD: AVANCE DE PUBLICACIÓN
 # ─────────────────────────────────────────────
-total_distritos_global = df["DIST_KEY"].nunique()  # siempre sobre base completa
 porc_publicacion = (
-    distritos_publicando / total_distritos_global * 100
-    if total_distritos_global else 0
+    distritos_publicando / TOTAL_DISTRITOS_GLOBAL * 100
+    if TOTAL_DISTRITOS_GLOBAL else 0
 )
 
 components.html(f"""
 <div style="
-    background:white;
-    border-radius:12px;
-    padding:18px 20px;
+    background:white; border-radius:12px; padding:18px 20px;
     box-shadow:0 2px 10px rgba(0,0,0,0.08);
-    border-left:6px solid #1a9e5c;
-    font-family:sans-serif;
-    margin-bottom:14px;
+    border-left:6px solid #1a9e5c; font-family:sans-serif; margin-bottom:14px;
 ">
     <div style="font-size:0.85rem;font-weight:700;color:#1a2540;margin-bottom:10px;">
         📍 Avance de publicación de LPI
-        {"&nbsp;&nbsp;<span style='font-size:0.75rem;color:#0072c6;font-weight:400;'>(" + sel_fecha_label + " · JNE: " + sel_jne + " · Tipo: " + sel_tipo + ")</span>" if any(x != y for x, y in [
-            (sel_fecha_label, "Todas las fechas"), (sel_jne, "Todos"), (sel_tipo, "Todos")
-        ]) else ""}
     </div>
     <div style="display:flex;justify-content:space-between;align-items:baseline;">
         <div style="font-size:2.3rem;font-weight:800;">{distritos_publicando}</div>
         <div style="font-size:1.1rem;font-weight:600;color:#1a9e5c;">{porc_publicacion:.1f}%</div>
     </div>
     <div style="font-size:0.8rem;color:#6b7a99;margin-top:6px;">
-        de {total_distritos_global} distritos a nivel nacional
+        de {TOTAL_DISTRITOS_GLOBAL} distritos a nivel nacional
     </div>
     <div style="margin-top:12px;background:#e6ecf5;border-radius:10px;height:10px;overflow:hidden;">
-        <div style="width:{porc_publicacion}%;height:10px;background:linear-gradient(90deg,#56a3ff,#1a9e5c);"></div>
+        <div style="width:{porc_publicacion}%;height:10px;
+                    background:linear-gradient(90deg,#56a3ff,#1a9e5c);"></div>
     </div>
 </div>
 """, height=140)
@@ -370,7 +330,6 @@ components.html(f"""
 # ─────────────────────────────────────────────
 col_mapa, col_charts = st.columns([2.2, 1], gap="medium")
 
-# ── MAPA ──────────────────────────────────────
 with col_mapa:
     st.markdown(
         '<div class="section-title">🗺️ Mapa de distritos por departamento</div>',
@@ -380,10 +339,14 @@ with col_mapa:
     with open("peru_departamental_simple.geojson", "r", encoding="utf-8") as f:
         geojson = json.load(f)
 
-    # El mapa usa df_filtrado (ya viene filtrado por JNE y fecha)
-    # El selector de tipo aquí solo sirve de referencia visual adicional
-    # (el filtro global ya aplica)
+    modo_mapa = st.selectbox(
+        "Tipo de publicación (solo mapa)",
+        ["Todos", "PERSONAL DRE", "CONTRATADO", "EN AGENCIA"]
+    )
+
     df_map = df_filtrado.copy()
+    if modo_mapa != "Todos":
+        df_map = df_map[df_map["DESCRIPCIÓN"] == modo_mapa]
 
     def lista_distritos(x):
         distritos = sorted(x.dropna().unique())
@@ -395,175 +358,121 @@ with col_mapa:
     dep_data = (
         df_map
         .groupby("DEPARTAMENTO")
-        .agg(
-            num_distritos=("DISTRITO", "nunique"),
-            distritos=("DISTRITO", lista_distritos)
-        )
+        .agg(num_distritos=("DISTRITO", "nunique"), distritos=("DISTRITO", lista_distritos))
         .reset_index()
     )
 
     fig_map = px.choropleth(
-        dep_data,
-        geojson=geojson,
-        locations="DEPARTAMENTO",
-        featureidkey="properties.NOMBDEP",
+        dep_data, geojson=geojson,
+        locations="DEPARTAMENTO", featureidkey="properties.NOMBDEP",
         color="num_distritos",
-        color_continuous_scale=[
-            [0, "#dce6f2"],
-            [0.5, "#6ea8fe"],
-            [1, "#003f7f"]
-        ],
+        color_continuous_scale=[[0,"#dce6f2"],[0.5,"#6ea8fe"],[1,"#003f7f"]],
     )
-
     fig_map.update_traces(
         hovertemplate=(
-            "<b>%{location}</b><br>"
-            "Distritos: %{z}<br><br>"
+            "<b>%{location}</b><br>Distritos: %{z}<br><br>"
             "<b>Listado:</b><br>%{customdata}<extra></extra>"
         ),
         customdata=dep_data["distritos"]
     )
-
     fig_map.update_geos(fitbounds="locations", visible=False, projection_scale=4.2)
     fig_map.update_layout(
-        height=650,
-        margin=dict(l=0, r=0, t=0, b=0),
+        height=650, margin=dict(l=0,r=0,t=0,b=0),
         coloraxis_colorbar=dict(title="N° distritos"),
     )
 
     DEP_COORDS = {
-        "AMAZONAS": {"lat": -5.5, "lon": -78.1},
-        "ANCASH": {"lat": -9.53, "lon": -77.53},
-        "APURIMAC": {"lat": -14.05, "lon": -73.09},
-        "AREQUIPA": {"lat": -16.41, "lon": -71.54},
-        "AYACUCHO": {"lat": -13.16, "lon": -74.22},
-        "CAJAMARCA": {"lat": -7.16, "lon": -78.51},
-        "CUSCO": {"lat": -13.52, "lon": -71.97},
-        "HUANCAVELICA": {"lat": -12.79, "lon": -74.97},
-        "HUANUCO": {"lat": -9.93, "lon": -76.24},
-        "ICA": {"lat": -14.07, "lon": -75.73},
-        "JUNIN": {"lat": -11.16, "lon": -75.23},
-        "LA LIBERTAD": {"lat": -8.12, "lon": -78.12},
-        "LAMBAYEQUE": {"lat": -6.77, "lon": -79.84},
-        "LIMA": {"lat": -12.04, "lon": -76.95},
-        "LORETO": {"lat": -4.0, "lon": -75.0},
-        "MADRE DE DIOS": {"lat": -11.0, "lon": -70.5},
-        "MOQUEGUA": {"lat": -17.19, "lon": -70.93},
-        "PASCO": {"lat": -10.66, "lon": -76.25},
-        "PIURA": {"lat": -5.19, "lon": -80.63},
-        "PUNO": {"lat": -15.84, "lon": -70.02},
-        "SAN MARTIN": {"lat": -7.0, "lon": -76.5},
-        "TACNA": {"lat": -18.01, "lon": -70.25},
-        "UCAYALI": {"lat": -8.38, "lon": -74.55},
+        "AMAZONAS":     {"lat":-5.5,  "lon":-78.1},
+        "ANCASH":       {"lat":-9.53, "lon":-77.53},
+        "APURIMAC":     {"lat":-14.05,"lon":-73.09},
+        "AREQUIPA":     {"lat":-16.41,"lon":-71.54},
+        "AYACUCHO":     {"lat":-13.16,"lon":-74.22},
+        "CAJAMARCA":    {"lat":-7.16, "lon":-78.51},
+        "CUSCO":        {"lat":-13.52,"lon":-71.97},
+        "HUANCAVELICA": {"lat":-12.79,"lon":-74.97},
+        "HUANUCO":      {"lat":-9.93, "lon":-76.24},
+        "ICA":          {"lat":-14.07,"lon":-75.73},
+        "JUNIN":        {"lat":-11.16,"lon":-75.23},
+        "LA LIBERTAD":  {"lat":-8.12, "lon":-78.12},
+        "LAMBAYEQUE":   {"lat":-6.77, "lon":-79.84},
+        "LIMA":         {"lat":-12.04,"lon":-76.95},
+        "LORETO":       {"lat":-4.0,  "lon":-75.0},
+        "MADRE DE DIOS":{"lat":-11.0, "lon":-70.5},
+        "MOQUEGUA":     {"lat":-17.19,"lon":-70.93},
+        "PASCO":        {"lat":-10.66,"lon":-76.25},
+        "PIURA":        {"lat":-5.19, "lon":-80.63},
+        "PUNO":         {"lat":-15.84,"lon":-70.02},
+        "SAN MARTIN":   {"lat":-7.0,  "lon":-76.5},
+        "TACNA":        {"lat":-18.01,"lon":-70.25},
+        "UCAYALI":      {"lat":-8.38, "lon":-74.55},
     }
 
     for _, row in dep_data.iterrows():
-        coords = DEP_COORDS.get(row["DEPARTAMENTO"], None)
+        coords = DEP_COORDS.get(row["DEPARTAMENTO"])
         if coords:
             fig_map.add_trace(go.Scattergeo(
-                lon=[coords["lon"]],
-                lat=[coords["lat"]],
-                mode="markers+text",
-                text=[str(row["num_distritos"])],
+                lon=[coords["lon"]], lat=[coords["lat"]],
+                mode="markers+text", text=[str(row["num_distritos"])],
                 textfont=dict(size=10, color="white"),
                 marker=dict(size=28, color="#003f7f", line=dict(color="white", width=1)),
-                showlegend=False,
-                hoverinfo="skip"
+                showlegend=False, hoverinfo="skip"
             ))
 
     st.plotly_chart(fig_map, use_container_width=True)
 
-# ── GRÁFICOS CIRCULARES ────────────────────────
 with col_charts:
     st.markdown(
         '<div class="section-title">📊 Indicadores de publicación</div>',
         unsafe_allow_html=True
     )
 
-    # Base: 1 fila por distrito sobre df_filtrado
-    df_dist = df_filtrado.groupby("DIST_KEY", as_index=False).agg({
-        "PRESENCIA DEL JNE": "first",
-        "FECHA DE INICIO DE PUBLICACIÓN": "min",
-    })
-
-    # ── Gráfico 1: Presencia JNE ──
-    jne_col = "PRESENCIA DEL JNE"
-    if jne_col in df_dist.columns:
-        jne_counts = (
-            df_dist[jne_col]
-            .fillna("Sin información")
-            .str.strip()
-            .str.upper()
-            .replace({"NAN": "SIN INFORMACIÓN", "": "SIN INFORMACIÓN"})
-        )
-        jne_val_df = jne_counts.value_counts().reset_index()
-        jne_val_df.columns = ["Estado", "Cantidad"]
-    else:
-        jne_val_df = pd.DataFrame({"Estado": ["Sin información"], "Cantidad": [total_distritos]})
-
-    color_jne = {"SI": "#1a9e5c", "NO": "#c0392b", "SIN INFORMACIÓN": "#aab4c2"}
+    # ── Gráfico 1: Presencia JNE (por distritos únicos) ──
+    jne_counts = (
+        df_dist["JNE"]
+        .fillna("SIN INFORMACIÓN").str.strip().str.upper()
+        .replace({"NAN": "SIN INFORMACIÓN", "": "SIN INFORMACIÓN"})
+        .value_counts().reset_index()
+    )
+    jne_counts.columns = ["Estado", "Cantidad"]
 
     fig_jne = px.pie(
-        jne_val_df,
-        names="Estado",
-        values="Cantidad",
-        hole=0.55,
+        jne_counts, names="Estado", values="Cantidad", hole=0.55,
         color="Estado",
-        color_discrete_map=color_jne,
+        color_discrete_map={"SI":"#1a9e5c","NO":"#c0392b","SIN INFORMACIÓN":"#aab4c2"},
         title="Presencia del JNE en la publicación",
     )
-    fig_jne.update_traces(
-        textinfo="percent+label",
-        hovertemplate="%{label}: %{value} distritos"
-    )
+    fig_jne.update_traces(textinfo="percent+label", hovertemplate="%{label}: %{value} distritos")
     fig_jne.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=10, r=10, t=40, b=10),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=10,r=10,t=40,b=10),
         title_font=dict(size=12, color="#1a2540"),
-        legend=dict(font=dict(size=10)),
-        height=220,
-        showlegend=True,
+        legend=dict(font=dict(size=10)), height=220, showlegend=True,
     )
     st.plotly_chart(fig_jne, use_container_width=True)
 
-    # ── Gráfico 2: Fecha de inicio de publicación ──
-    fecha_col = "FECHA DE INICIO DE PUBLICACIÓN"
-    if fecha_col in df_dist.columns:
-        fechas = df_dist[fecha_col].dropna()
-        if len(fechas) > 0:
-            fecha_dist = (
-                fechas.dt.strftime("%d/%m/%Y")
-                .value_counts()
-                .reset_index()
-            )
-            fecha_dist.columns = ["Fecha", "Cantidad"]
-            fecha_dist = fecha_dist.sort_values("Fecha")
-        else:
-            fecha_dist = pd.DataFrame({"Fecha": ["Sin datos"], "Cantidad": [total_distritos]})
+    # ── Gráfico 2: Fecha de inicio (por distritos únicos) ──
+    fechas_dist = df_dist["FECHA_INICIO"].dropna()
+    if len(fechas_dist) > 0:
+        fecha_dist_df = (
+            fechas_dist.dt.strftime("%d/%m/%Y")
+            .value_counts().reset_index()
+        )
+        fecha_dist_df.columns = ["Fecha", "Cantidad"]
+        fecha_dist_df = fecha_dist_df.sort_values("Fecha")
     else:
-        fecha_dist = pd.DataFrame({"Fecha": ["Sin datos"], "Cantidad": [total_distritos]})
+        fecha_dist_df = pd.DataFrame({"Fecha": ["Sin datos"], "Cantidad": [total_distritos]})
 
     fig_fecha = px.pie(
-        fecha_dist,
-        names="Fecha",
-        values="Cantidad",
-        hole=0.55,
+        fecha_dist_df, names="Fecha", values="Cantidad", hole=0.55,
         title="Fecha de inicio de publicación",
         color_discrete_sequence=px.colors.sequential.Blues_r,
     )
-    fig_fecha.update_traces(
-        textinfo="percent+label",
-        hovertemplate="%{label}: %{value} distritos"
-    )
+    fig_fecha.update_traces(textinfo="percent+label", hovertemplate="%{label}: %{value} distritos")
     fig_fecha.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=10, r=10, t=40, b=10),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=10,r=10,t=40,b=10),
         title_font=dict(size=12, color="#1a2540"),
-        legend=dict(font=dict(size=10)),
-        height=220,
-        showlegend=True,
+        legend=dict(font=dict(size=10)), height=220, showlegend=True,
     )
     st.plotly_chart(fig_fecha, use_container_width=True)
 
@@ -575,55 +484,45 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-inc_cols = [
-    "INCIDENCIAS PREVIAS",
-    "INCIDENCIAS (22/04)",
-    "INCIDENCIAS (23/04)",
-    "INCIDENCIAS (24/04)",
-    "INCIDENCIAS (25/04)",
-    "INCIDENCIAS (26/04)",
-]
-inc_cols = [c for c in inc_cols if c in df_filtrado.columns]
+inc_cols = [c for c in [
+    "INCIDENCIAS PREVIAS","INCIDENCIAS (22/04)","INCIDENCIAS (23/04)",
+    "INCIDENCIAS (24/04)","INCIDENCIAS (25/04)","INCIDENCIAS (26/04)",
+] if c in df_filtrado.columns]
 
-if len(inc_cols) == 0:
+if not inc_cols:
     st.info("No se encontraron columnas de incidencias.", icon="⚠️")
 else:
-    tabs = st.tabs(inc_cols)
-
     st.markdown("""
         <style>
         .stDataFrame div[data-testid="stDataFrame"] td {
-            white-space: normal !important;
-            word-wrap: break-word !important;
+            white-space: normal !important; word-wrap: break-word !important;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    for tab, col in zip(tabs, inc_cols):
+    for tab, col in zip(st.tabs(inc_cols), inc_cols):
         with tab:
             df_inc = df_filtrado[
-                df_filtrado[col].notna() & (df_filtrado[col].astype(str).str.strip() != "")
+                df_filtrado[col].notna() &
+                (df_filtrado[col].astype(str).str.strip() != "")
             ][["DEPARTAMENTO", "DISTRITO", col]].copy()
-
             df_inc.columns = ["Departamento", "Distrito", "Incidencia"]
             df_inc = df_inc.reset_index(drop=True)
 
             if len(df_inc) > 0:
                 st.dataframe(
-                    df_inc,
-                    use_container_width=True,
-                    height=500,
+                    df_inc, use_container_width=True, height=500,
                     column_config={
                         "Departamento": st.column_config.TextColumn("Departamento", width="small"),
-                        "Distrito": st.column_config.TextColumn("Distrito", width="small"),
-                        "Incidencia": st.column_config.TextColumn("Incidencia", width="large"),
+                        "Distrito":     st.column_config.TextColumn("Distrito",     width="small"),
+                        "Incidencia":   st.column_config.TextColumn("Incidencia",   width="large"),
                     }
                 )
             else:
-                st.info("Sin incidencias para este día (con los filtros activos).", icon="✅")
+                st.info("Sin incidencias para este día.", icon="✅")
 
 # ─────────────────────────────────────────────
-# TABLA CON FILTROS ADICIONALES (Depto / Provincia)
+# TABLA DETALLE CON FILTROS DE DEPTO / PROVINCIA
 # ─────────────────────────────────────────────
 st.markdown("<br>", unsafe_allow_html=True)
 st.markdown(
@@ -631,22 +530,17 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-f1, f2, f3 = st.columns([1, 1, 1])
+f1, f2, _ = st.columns([1, 1, 1])
 with f1:
     depts = sorted(df_filtrado["DEPARTAMENTO"].dropna().unique().tolist())
     sel_dept = st.multiselect("Departamento", depts, placeholder="Todos los departamentos")
-
 with f2:
-    if sel_dept:
-        provs = sorted(
-            df_filtrado[df_filtrado["DEPARTAMENTO"].isin(sel_dept)]["PROVINCIA"]
-            .dropna().unique().tolist()
-        )
-    else:
-        provs = sorted(df_filtrado["PROVINCIA"].dropna().unique().tolist())
+    provs = sorted(
+        (df_filtrado[df_filtrado["DEPARTAMENTO"].isin(sel_dept)] if sel_dept else df_filtrado)
+        ["PROVINCIA"].dropna().unique().tolist()
+    )
     sel_prov = st.multiselect("Provincia", provs, placeholder="Todas las provincias")
 
-# Filtrar tabla desde df_filtrado
 df_tab = df_filtrado.copy()
 if sel_dept:
     df_tab = df_tab[df_tab["DEPARTAMENTO"].isin(sel_dept)]
@@ -654,32 +548,27 @@ if sel_prov:
     df_tab = df_tab[df_tab["PROVINCIA"].isin(sel_prov)]
 
 COLS_TABLA = [
-    "DEPARTAMENTO",
-    "PROVINCIA",
-    "DISTRITO",
-    "DESCRIPCIÓN",
-    "PRESENCIA DEL JNE",
-    "FECHA DE INICIO DE PUBLICACIÓN",
-    "FECHA DE FIN DE PUBLICACIÓN",
+    "DEPARTAMENTO","PROVINCIA","DISTRITO","DESCRIPCIÓN",
+    "PRESENCIA DEL JNE","FECHA DE INICIO DE PUBLICACIÓN","FECHA DE FIN DE PUBLICACIÓN",
     "# DE CIUDADANOS ENCUESTADOS",
     "# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)",
     "# DE TACHAS Y RECLAMOS",
 ]
-cols_pres = [c for c in COLS_TABLA if c in df_tab.columns]
-df_mostrar = df_tab[cols_pres].reset_index(drop=True)
+df_mostrar = (
+    df_tab[[c for c in COLS_TABLA if c in df_tab.columns]]
+    .reset_index(drop=True)
+    .rename(columns={
+        "PRESENCIA DEL JNE":   "¿Presencia del JNE?",
+        "DESCRIPCIÓN":         "PERSONAL",
+        "FECHA DE INICIO DE PUBLICACIÓN": "F. Inicio",
+        "FECHA DE FIN DE PUBLICACIÓN":    "F. Fin",
+        "# DE CIUDADANOS ENCUESTADOS":    "Ciudadanos encuestados",
+        "# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)": "# Actas Def.",
+        "# DE TACHAS Y RECLAMOS": "# Tachas/Reclamos",
+    })
+)
 
-rename_map = {
-    "PRESENCIA DEL JNE": "¿Presencia del JNE?",
-    "DESCRIPCIÓN": "PERSONAL",
-    "FECHA DE INICIO DE PUBLICACIÓN": "F. Inicio",
-    "FECHA DE FIN DE PUBLICACIÓN": "F. Fin",
-    "# DE CIUDADANOS ENCUESTADOS": "Ciudadanos encuestados",
-    "# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)": "# Actas Def.",
-    "# DE TACHAS Y RECLAMOS": "# Tachas/Reclamos",
-}
-df_mostrar = df_mostrar.rename(columns=rename_map)
-
-st.markdown(f"**{len(df_mostrar)} registros** encontrados")
+st.markdown(f"**{df_mostrar['DISTRITO'].nunique()} distritos** encontrados")
 st.dataframe(df_mostrar, use_container_width=True, height=380)
 
 # ─────────────────────────────────────────────
