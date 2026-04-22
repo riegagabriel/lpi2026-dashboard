@@ -257,7 +257,7 @@ with k5:
     st.markdown(f"""
     <div class="kpi-card green">
       <div class="kpi-value">{int(ciudadanos_enc) if not pd.isna(ciudadanos_enc) else '—'}</div>
-      <div class="kpi-label">Ciudadanos Encuestados</div>
+      <div class="kpi-label">Ciudadanos Atendidos</div>
       <div class="kpi-sub">total nacional</div>
     </div>""", unsafe_allow_html=True)
 
