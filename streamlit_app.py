@@ -294,7 +294,7 @@ with col_mapa:
     df["DISTRITO"] = df["DISTRITO"].str.strip()
     df["DESCRIPCIÓN"] = df["DESCRIPCIÓN"].str.strip().str.upper()
 
-    # ── SELECTOR CORREGIDO ──
+    # ── SELECTOR ──
     modo = st.selectbox(
         "Tipo de publicación",
         ["Todos", "PERSONAL DRE", "CONTRATADO", "EN AGENCIA"]
@@ -303,21 +303,19 @@ with col_mapa:
     df_map = df.copy()
 
     if modo != "Todos":
-        df_map = df[df["DESCRIPCIÓN"] == modo]
+        df_map = df_map[df_map["DESCRIPCIÓN"] == modo]
 
-    # ── AGRUPACIÓN ──
+    # ── AGRUPACIÓN (SOLO CONTEO) ──
     dep_data = (
         df_map
         .groupby("DEPARTAMENTO")
         .agg(
-            num_distritos=("DISTRITO", "nunique"),
-            # 🔥 LISTA VERTICAL
-            distritos=("DISTRITO", lambda x: "<br>".join(sorted(x.dropna().unique())))
+            num_distritos=("DISTRITO", "nunique")
         )
         .reset_index()
     )
 
-    # ── MAPA BASE ──
+    # ── MAPA ──
     fig_map = px.choropleth(
         dep_data,
         geojson=geojson,
@@ -331,27 +329,25 @@ with col_mapa:
         ],
     )
 
-    # ── HOVER MEJORADO ──
+    # 🔥 HOVER LIMPIO (SIN LISTAS)
     fig_map.update_traces(
         hovertemplate=(
             "<b>%{location}</b><br>"
-            "Distritos: %{z}<br><br>"
-            "<b>Listado:</b><br>%{customdata}<extra></extra>"
-        ),
-        customdata=dep_data["distritos"]
+            "N° distritos: %{z}<br>"
+            "<extra></extra>"
+        )
     )
 
-    # ── LAYOUT ──
     fig_map.update_geos(
-    fitbounds="locations",
-    visible=False,
-    projection_scale=4.2
+        fitbounds="locations",
+        visible=False,
+        projection_scale=4.2
     )
 
     fig_map.update_layout(
-    height=650,
-    margin=dict(l=0, r=0, t=0, b=0),
-    coloraxis_colorbar=dict(title="N° distritos"),
+        height=650,
+        margin=dict(l=0, r=0, t=0, b=0),
+        coloraxis_colorbar=dict(title="N° distritos"),
     )
 
     # ── CENTROIDES ──
@@ -381,7 +377,6 @@ with col_mapa:
         "UCAYALI": {"lat": -8.38, "lon": -74.55},
     }
 
-    # ── BADGES ──
     for _, row in dep_data.iterrows():
         coords = DEP_COORDS.get(row["DEPARTAMENTO"], None)
         if coords:
@@ -401,6 +396,34 @@ with col_mapa:
             ))
 
     st.plotly_chart(fig_map, use_container_width=True)
+
+    # ─────────────────────────────────────────────
+    # 📋 TABLA DINÁMICA DE DISTRITOS
+    # ─────────────────────────────────────────────
+
+    st.markdown("### 📋 Distritos por departamento")
+
+    selected_dep = st.selectbox(
+        "Selecciona un departamento",
+        sorted(df_map["DEPARTAMENTO"].dropna().unique())
+    )
+
+    df_lista = (
+        df_map[df_map["DEPARTAMENTO"] == selected_dep]
+        [["PROVINCIA", "DISTRITO"]]
+        .dropna()
+        .drop_duplicates()
+        .sort_values(["PROVINCIA", "DISTRITO"])
+        .reset_index(drop=True)
+    )
+
+    st.markdown(f"**{len(df_lista)} distritos encontrados**")
+
+    st.dataframe(
+        df_lista,
+        use_container_width=True,
+        height=400
+    )
 
 # ── GRÁFICOS CIRCULARES ────────────────────────
 with col_charts:
