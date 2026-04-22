@@ -406,17 +406,32 @@ with col_mapa:
 with col_charts:
     st.markdown('<div class="section-title">📊 Indicadores de publicación</div>', unsafe_allow_html=True)
 
+    # 🔥 BASE: 1 FILA POR DISTRITO
+    df_dist = df.groupby("DIST_KEY", as_index=False).agg({
+        "PRESENCIA DEL JNE": "first",
+        "FECHA DE INICIO DE PUBLICACIÓN": "min",
+    })
+
     # ── Gráfico 1: Presencia JNE ──────────────────
     jne_col = "PRESENCIA DEL JNE"
-    if jne_col in df.columns:
-        jne_counts = df[jne_col].fillna("Sin información").str.strip().str.upper()
-        jne_counts = jne_counts.replace({"NAN": "Sin información", "": "Sin información"})
+
+    if jne_col in df_dist.columns:
+        jne_counts = (
+            df_dist[jne_col]
+            .fillna("Sin información")
+            .str.strip()
+            .str.upper()
+            .replace({"NAN": "SIN INFORMACIÓN", "": "SIN INFORMACIÓN"})
+        )
+
         jne_val = jne_counts.value_counts().reset_index()
         jne_val.columns = ["Estado", "Cantidad"]
+
     else:
-        jne_val = pd.DataFrame({"Estado": ["Sin información"], "Cantidad": [len(df)]})
+        jne_val = pd.DataFrame({"Estado": ["Sin información"], "Cantidad": [total_distritos]})
 
     color_jne = {"SI": "#1a9e5c", "NO": "#c0392b", "SIN INFORMACIÓN": "#aab4c2"}
+
     fig_jne = px.pie(
         jne_val,
         names="Estado",
@@ -426,7 +441,12 @@ with col_charts:
         color_discrete_map=color_jne,
         title="Presencia del JNE en la publicación",
     )
-    fig_jne.update_traces(textinfo="percent+label", hovertemplate="%{label}: %{value} distritos")
+
+    fig_jne.update_traces(
+        textinfo="percent+label",
+        hovertemplate="%{label}: %{value} distritos"
+    )
+
     fig_jne.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
@@ -436,20 +456,29 @@ with col_charts:
         height=220,
         showlegend=True,
     )
+
     st.plotly_chart(fig_jne, use_container_width=True)
 
     # ── Gráfico 2: Fecha de inicio de publicación ──
     fecha_col = "FECHA DE INICIO DE PUBLICACIÓN"
-    if fecha_col in df.columns:
-        fechas = df[fecha_col].dropna()
+
+    if fecha_col in df_dist.columns:
+        fechas = df_dist[fecha_col].dropna()
+
         if len(fechas) > 0:
-            fecha_dist = fechas.dt.strftime("%d/%m/%Y").value_counts().reset_index()
+            fecha_dist = (
+                fechas.dt.strftime("%d/%m/%Y")
+                .value_counts()
+                .reset_index()
+            )
             fecha_dist.columns = ["Fecha", "Cantidad"]
             fecha_dist = fecha_dist.sort_values("Fecha")
+
         else:
-            fecha_dist = pd.DataFrame({"Fecha": ["Sin datos"], "Cantidad": [len(df)]})
+            fecha_dist = pd.DataFrame({"Fecha": ["Sin datos"], "Cantidad": [total_distritos]})
+
     else:
-        fecha_dist = pd.DataFrame({"Fecha": ["Sin datos"], "Cantidad": [len(df)]})
+        fecha_dist = pd.DataFrame({"Fecha": ["Sin datos"], "Cantidad": [total_distritos]})
 
     fig_fecha = px.pie(
         fecha_dist,
@@ -459,7 +488,12 @@ with col_charts:
         title="Fecha de inicio de publicación",
         color_discrete_sequence=px.colors.sequential.Blues_r,
     )
-    fig_fecha.update_traces(textinfo="percent+label", hovertemplate="%{label}: %{value} distritos")
+
+    fig_fecha.update_traces(
+        textinfo="percent+label",
+        hovertemplate="%{label}: %{value} distritos"
+    )
+
     fig_fecha.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
@@ -469,8 +503,8 @@ with col_charts:
         height=220,
         showlegend=True,
     )
+
     st.plotly_chart(fig_fecha, use_container_width=True)
-    
 # ── Tabla de Incidencias por día ──
 st.markdown(
     '<div class="section-title" style="margin-top:12px">🚨 Incidencias reportadas</div>',
