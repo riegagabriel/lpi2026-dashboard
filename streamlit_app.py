@@ -35,6 +35,7 @@ st.markdown("""
     .kpi-card.blue2 { border-left-color: #0072c6; }
     .kpi-card.blue3 { border-left-color: #2f80ed; }
     .kpi-card.blue4 { border-left-color: #56a3ff; }
+    .kpi-card.green { border-left-color: #1a9e5c; }
     .kpi-value { font-size: 1.9rem; font-weight: 800; color: #1a2540; }
     .kpi-label { font-size: 0.72rem; color: #6b7a99; margin-top: 4px; }
     .kpi-sub   { font-size: 0.75rem; color: #0072c6; }
@@ -100,13 +101,10 @@ df = limpiar(df_raw)
 df["DEPARTAMENTO"] = df["DEPARTAMENTO"].str.upper().str.strip()
 df["DISTRITO"]     = df["DISTRITO"].str.strip()
 df["PROVINCIA"]    = df["PROVINCIA"].str.strip()
-
-# Clave única por distrito usando UBIGEO RENIEC
-df["DIST_KEY"] = df["UBIGEO RENIEC"].astype(str).str.strip()
+df["DIST_KEY"]     = df["UBIGEO RENIEC"].astype(str).str.strip()
 
 # ─────────────────────────────────────────────
-# ★ KPIs FIJOS — calculados sobre TODA la base,
-#   sin filtros, 1 fila por distrito
+# KPIs FIJOS — toda la base, 1 fila por distrito
 # ─────────────────────────────────────────────
 df_dist_global = (
     df.sort_values("DESCRIPCIÓN")
@@ -114,7 +112,7 @@ df_dist_global = (
     .agg(DESCRIPCION=("DESCRIPCIÓN", "first"))
 )
 
-TOTAL_DISTRITOS_GLOBAL = df_dist_global["DIST_KEY"].nunique()           # 404
+TOTAL_DISTRITOS_GLOBAL = df_dist_global["DIST_KEY"].nunique()
 KPI_CONTRATADO         = (df_dist_global["DESCRIPCION"] == "CONTRATADO").sum()
 KPI_DRE                = (df_dist_global["DESCRIPCION"] == "PERSONAL DRE").sum()
 KPI_AGENCIA            = (df_dist_global["DESCRIPCION"] == "EN AGENCIA").sum()
@@ -135,9 +133,78 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# KPIs FIJOS (fila superior — no cambian con filtros)
+# FILTROS GLOBALES
 # ─────────────────────────────────────────────
-k1, k2, k3, k4 = st.columns(4)
+st.markdown('<div class="filter-bar">', unsafe_allow_html=True)
+st.markdown("**🔎 Filtros globales**")
+
+fcol1, fcol2 = st.columns([1.6, 1])
+
+with fcol1:
+    fechas_disponibles = sorted(
+        df["FECHA DE INICIO DE PUBLICACIÓN"].dropna().dt.normalize().unique()
+    )
+    etiquetas_fecha = ["Todas las fechas"] + [
+        pd.Timestamp(f).strftime("%d/%m/%Y") for f in fechas_disponibles
+    ]
+    sel_fecha_label = st.radio(
+        "📅 Fecha de inicio de publicación",
+        etiquetas_fecha, horizontal=True, key="filtro_fecha",
+    )
+
+with fcol2:
+    sel_jne = st.radio(
+        "👁️ Presencia del JNE",
+        ["Todos", "Sí", "No"], horizontal=True, key="filtro_jne",
+    )
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────
+# CONSTRUIR df_filtrado y df_dist_filtrado
+# ─────────────────────────────────────────────
+df_filtrado = df.copy()
+
+if sel_fecha_label != "Todas las fechas":
+    fecha_sel = pd.to_datetime(sel_fecha_label, dayfirst=True).normalize()
+    df_filtrado = df_filtrado[
+        df_filtrado["FECHA DE INICIO DE PUBLICACIÓN"].dt.normalize() == fecha_sel
+    ]
+
+if sel_jne != "Todos":
+    jne_val = "SI" if sel_jne == "Sí" else "NO"
+    df_filtrado = df_filtrado[
+        df_filtrado["PRESENCIA DEL JNE"] == jne_val
+    ]
+
+# 1 fila por distrito dentro del conjunto filtrado
+df_dist_filtrado = (
+    df_filtrado.sort_values("DESCRIPCIÓN")
+    .groupby("DIST_KEY", as_index=False)
+    .agg(
+        DESCRIPCION =("DESCRIPCIÓN",                    "first"),
+        JNE         =("PRESENCIA DEL JNE",              "first"),
+        SE_REALIZO  =("¿SE REALIZÓ LA PUBLICACIÓN?",    "first"),
+        FECHA_INICIO=("FECHA DE INICIO DE PUBLICACIÓN", "min"),
+        CIUDADANOS  =("# DE CIUDADANOS ENCUESTADOS",    "sum"),
+        ACTAS_DEF   =("# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)", "sum"),
+        TACHAS      =("# DE TACHAS Y RECLAMOS",         "sum"),
+        DEPARTAMENTO=("DEPARTAMENTO",                   "first"),
+        PROVINCIA   =("PROVINCIA",                      "first"),
+        DISTRITO    =("DISTRITO",                       "first"),
+    )
+)
+
+# KPIs dinámicos
+distritos_publicando = (df_dist_filtrado["SE_REALIZO"] == "SI").sum()
+ciudadanos_enc       = df_dist_filtrado["CIUDADANOS"].sum()
+actas_def            = df_dist_filtrado["ACTAS_DEF"].sum()
+tachas_rec           = df_dist_filtrado["TACHAS"].sum()
+
+# ─────────────────────────────────────────────
+# FILA ÚNICA DE KPIs (4 fijos + 3 dinámicos)
+# ─────────────────────────────────────────────
+k1, k2, k3, k4, k5, k6, k7 = st.columns(7)
 
 with k1:
     st.markdown(f"""
@@ -171,100 +238,25 @@ with k4:
       <div class="kpi-sub">Con Publicación en agencia</div>
     </div>""", unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True)
-
-# ─────────────────────────────────────────────
-# ★ FILTROS GLOBALES
-# ─────────────────────────────────────────────
-st.markdown('<div class="filter-bar">', unsafe_allow_html=True)
-st.markdown("**🔎 Filtros globales**")
-
-fcol1, fcol2 = st.columns([1.6, 1])
-
-with fcol1:
-    fechas_disponibles = sorted(
-        df["FECHA DE INICIO DE PUBLICACIÓN"].dropna().dt.normalize().unique()
-    )
-    etiquetas_fecha = ["Todas las fechas"] + [
-        pd.Timestamp(f).strftime("%d/%m/%Y") for f in fechas_disponibles
-    ]
-    sel_fecha_label = st.radio(
-        "📅 Fecha de inicio de publicación",
-        etiquetas_fecha, horizontal=True, key="filtro_fecha",
-    )
-
-with fcol2:
-    sel_jne = st.radio(
-        "👁️ Presencia del JNE",
-        ["Todos", "Sí", "No"], horizontal=True, key="filtro_jne",
-    )
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ─────────────────────────────────────────────
-# CONSTRUIR df_filtrado
-# ─────────────────────────────────────────────
-df_filtrado = df.copy()
-
-if sel_fecha_label != "Todas las fechas":
-    fecha_sel = pd.to_datetime(sel_fecha_label, dayfirst=True).normalize()
-    df_filtrado = df_filtrado[
-        df_filtrado["FECHA DE INICIO DE PUBLICACIÓN"].dt.normalize() == fecha_sel
-    ]
-
-if sel_jne != "Todos":
-    jne_val = "SI" if sel_jne == "Sí" else "NO"
-    df_filtrado = df_filtrado[
-        df_filtrado["PRESENCIA DEL JNE"] == jne_val
-    ]
-
-# Una fila por distrito dentro del conjunto filtrado
-df_dist_filtrado = (
-    df_filtrado.sort_values("DESCRIPCIÓN")
-    .groupby("DIST_KEY", as_index=False)
-    .agg(
-        DESCRIPCION =("DESCRIPCIÓN",                    "first"),
-        JNE         =("PRESENCIA DEL JNE",              "first"),
-        SE_REALIZO  =("¿SE REALIZÓ LA PUBLICACIÓN?",    "first"),
-        FECHA_INICIO=("FECHA DE INICIO DE PUBLICACIÓN", "min"),
-        CIUDADANOS  =("# DE CIUDADANOS ENCUESTADOS",    "sum"),
-        ACTAS_DEF   =("# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)", "sum"),
-        TACHAS      =("# DE TACHAS Y RECLAMOS",         "sum"),
-        DEPARTAMENTO=("DEPARTAMENTO",                   "first"),
-        PROVINCIA   =("PROVINCIA",                      "first"),
-        DISTRITO    =("DISTRITO",                       "first"),
-    )
-)
-
-# ─────────────────────────────────────────────
-# KPIs DINÁMICOS (segunda fila — sí cambian)
-# ─────────────────────────────────────────────
-distritos_publicando = (df_dist_filtrado["SE_REALIZO"] == "SI").sum()
-ciudadanos_enc       = df_dist_filtrado["CIUDADANOS"].sum()
-actas_def            = df_dist_filtrado["ACTAS_DEF"].sum()
-tachas_rec           = df_dist_filtrado["TACHAS"].sum()
-
-d1, d2, d3 = st.columns(3)
-
-with d1:
+with k5:
     st.markdown(f"""
-    <div class="kpi-card">
+    <div class="kpi-card green">
       <div class="kpi-value">{int(ciudadanos_enc) if not pd.isna(ciudadanos_enc) else '—'}</div>
       <div class="kpi-label">Ciudadanos Encuestados</div>
       <div class="kpi-sub">total nacional</div>
     </div>""", unsafe_allow_html=True)
 
-with d2:
+with k6:
     st.markdown(f"""
-    <div class="kpi-card">
+    <div class="kpi-card green">
       <div class="kpi-value">{int(actas_def) if not pd.isna(actas_def) else '—'}</div>
       <div class="kpi-label">Actas de Defunción</div>
       <div class="kpi-sub">entregadas municipalidad</div>
     </div>""", unsafe_allow_html=True)
 
-with d3:
+with k7:
     st.markdown(f"""
-    <div class="kpi-card">
+    <div class="kpi-card green">
       <div class="kpi-value">{int(tachas_rec) if not pd.isna(tachas_rec) else '—'}</div>
       <div class="kpi-label">Tachas y Reclamos</div>
       <div class="kpi-sub">presentados</div>
@@ -401,7 +393,7 @@ with col_charts:
         unsafe_allow_html=True
     )
 
-    # Gráfico 1: Presencia JNE — por distritos únicos filtrados
+    # Gráfico 1: Presencia JNE
     jne_counts = (
         df_dist_filtrado["JNE"]
         .fillna("SIN INFORMACIÓN").str.strip().str.upper()
@@ -425,7 +417,7 @@ with col_charts:
     )
     st.plotly_chart(fig_jne, use_container_width=True)
 
-    # Gráfico 2: Fecha de inicio — por distritos únicos filtrados
+    # Gráfico 2: Fecha de inicio
     fechas_dist = df_dist_filtrado["FECHA_INICIO"].dropna()
     if len(fechas_dist) > 0:
         fecha_dist_df = (
@@ -508,26 +500,19 @@ with f1:
     depts = sorted(df_dist_filtrado["DEPARTAMENTO"].dropna().unique().tolist())
     sel_dept = st.multiselect("Departamento", depts, placeholder="Todos los departamentos")
 with f2:
-    base_prov = df_dist_filtrado[df_dist_filtrado["DEPARTAMENTO"].isin(sel_dept)] \
+    base_prov = (
+        df_dist_filtrado[df_dist_filtrado["DEPARTAMENTO"].isin(sel_dept)]
         if sel_dept else df_dist_filtrado
+    )
     provs = sorted(base_prov["PROVINCIA"].dropna().unique().tolist())
     sel_prov = st.multiselect("Provincia", provs, placeholder="Todas las provincias")
 
-# Partir de df_dist_filtrado para garantizar 1 fila por distrito
 df_tab = df_dist_filtrado.copy()
 if sel_dept:
     df_tab = df_tab[df_tab["DEPARTAMENTO"].isin(sel_dept)]
 if sel_prov:
     df_tab = df_tab[df_tab["PROVINCIA"].isin(sel_prov)]
 
-# Unir con columnas adicionales de df_filtrado para mostrar en tabla
-cols_extra = [
-    "DIST_KEY","DESCRIPCIÓN","PRESENCIA DEL JNE",
-    "FECHA DE INICIO DE PUBLICACIÓN","FECHA DE FIN DE PUBLICACIÓN",
-    "# DE CIUDADANOS ENCUESTADOS",
-    "# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)",
-    "# DE TACHAS Y RECLAMOS",
-]
 df_mostrar = df_tab.rename(columns={
     "DESCRIPCION":  "PERSONAL",
     "JNE":          "¿Presencia del JNE?",
