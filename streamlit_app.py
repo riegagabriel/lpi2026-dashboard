@@ -270,6 +270,51 @@ with k7:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
+# 📊 STORY CARD: PUBLICACIÓN EN DISTRITOS
+# ─────────────────────────────────────────────
+
+st.markdown("""
+<style>
+.metric-story-card {
+    background: white;
+    border-radius: 12px;
+    padding: 18px 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    border-left: 6px solid #1a9e5c;
+    margin-bottom: 12px;
+}
+
+.metric-story-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #1a2540;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.metric-story-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #1a2540;
+}
+
+.metric-story-sub {
+    font-size: 0.8rem;
+    color: #6b7a99;
+    margin-top: 4px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown(f"""
+<div class="metric-story-card">
+    <div class="metric-story-title">📍 Distritos donde se realiza la publicación</div>
+    <div class="metric-story-value">{distritos_publicando}</div>
+    <div class="metric-story-sub">de {total_distritos} distritos totales</div>
+</div>
+""", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────
 # FILA PRINCIPAL: MAPA + GRÁFICOS
 # ─────────────────────────────────────────────
 col_mapa, col_charts = st.columns([2.2, 1], gap="medium")
