@@ -305,17 +305,28 @@ with col_mapa:
     if modo != "Todos":
         df_map = df_map[df_map["DESCRIPCIÓN"] == modo]
 
-    # ── AGRUPACIÓN (SOLO CONTEO) ──
+    # ── AGRUPACIÓN ──
+    def lista_distritos(x):
+        distritos = sorted(x.dropna().unique())
+
+        MAX = 20  # 🔥 evita romper hover
+
+        if len(distritos) > MAX:
+            return "<br>".join(distritos[:MAX]) + f"<br>... (+{len(distritos)-MAX} más)"
+        else:
+            return "<br>".join(distritos)
+
     dep_data = (
         df_map
         .groupby("DEPARTAMENTO")
         .agg(
-            num_distritos=("DISTRITO", "nunique")
+            num_distritos=("DISTRITO", "nunique"),
+            distritos=("DISTRITO", lista_distritos)
         )
         .reset_index()
     )
 
-    # ── MAPA ──
+    # ── MAPA BASE ──
     fig_map = px.choropleth(
         dep_data,
         geojson=geojson,
@@ -329,15 +340,17 @@ with col_mapa:
         ],
     )
 
-    # 🔥 HOVER LIMPIO (SIN LISTAS)
+    # ── HOVER ──
     fig_map.update_traces(
         hovertemplate=(
             "<b>%{location}</b><br>"
-            "N° distritos: %{z}<br>"
-            "<extra></extra>"
-        )
+            "Distritos: %{z}<br><br>"
+            "<b>Listado:</b><br>%{customdata}<extra></extra>"
+        ),
+        customdata=dep_data["distritos"]
     )
 
+    # ── LAYOUT ──
     fig_map.update_geos(
         fitbounds="locations",
         visible=False,
@@ -396,7 +409,6 @@ with col_mapa:
             ))
 
     st.plotly_chart(fig_map, use_container_width=True)
-
     # ─────────────────────────────────────────────
     # 📋 TABLA DINÁMICA DE DISTRITOS
     # ─────────────────────────────────────────────
