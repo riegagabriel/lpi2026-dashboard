@@ -98,6 +98,20 @@ def limpiar(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 df = limpiar(df_raw)
+# ─────────────────────────────────────────────
+# LIMPIEZA DE FECHAS INVÁLIDAS
+# ─────────────────────────────────────────────
+fecha_min = pd.to_datetime("22/04/2026", dayfirst=True)
+fecha_max = pd.to_datetime("28/04/2026", dayfirst=True)
+
+df = df[
+    (df["FECHA DE INICIO DE PUBLICACIÓN"].isna()) |
+    (
+        (df["FECHA DE INICIO DE PUBLICACIÓN"] >= fecha_min) &
+        (df["FECHA DE INICIO DE PUBLICACIÓN"] <= fecha_max)
+    )
+]
+
 df["DEPARTAMENTO"] = df["DEPARTAMENTO"].str.upper().str.strip()
 df["DISTRITO"]     = df["DISTRITO"].str.strip()
 df["PROVINCIA"]    = df["PROVINCIA"].str.strip()
