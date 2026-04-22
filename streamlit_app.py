@@ -409,34 +409,7 @@ with col_mapa:
             ))
 
     st.plotly_chart(fig_map, use_container_width=True)
-    # ─────────────────────────────────────────────
-    # 📋 TABLA DINÁMICA DE DISTRITOS
-    # ─────────────────────────────────────────────
-
-    st.markdown("### 📋 Distritos por departamento")
-
-    selected_dep = st.selectbox(
-        "Selecciona un departamento",
-        sorted(df_map["DEPARTAMENTO"].dropna().unique())
-    )
-
-    df_lista = (
-        df_map[df_map["DEPARTAMENTO"] == selected_dep]
-        [["PROVINCIA", "DISTRITO"]]
-        .dropna()
-        .drop_duplicates()
-        .sort_values(["PROVINCIA", "DISTRITO"])
-        .reset_index(drop=True)
-    )
-
-    st.markdown(f"**{len(df_lista)} distritos encontrados**")
-
-    st.dataframe(
-        df_lista,
-        use_container_width=True,
-        height=400
-    )
-
+    
 # ── GRÁFICOS CIRCULARES ────────────────────────
 with col_charts:
     st.markdown('<div class="section-title">📊 Indicadores de publicación</div>', unsafe_allow_html=True)
