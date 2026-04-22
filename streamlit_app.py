@@ -312,7 +312,7 @@ with col_mapa:
         .agg(
             num_distritos=("DISTRITO", "nunique"),
             # 🔥 LISTA VERTICAL
-            distritos=("DISTRITO", lambda x: "<br>".join(sorted(x.dropna().unique()[:25])))
+            distritos=("DISTRITO", lambda x: "<br>".join(sorted(x.dropna().unique())))
         )
         .reset_index()
     )
