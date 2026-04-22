@@ -270,8 +270,14 @@ with k7:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# 📊 STORY CARD: PUBLICACIÓN EN DISTRITOS
+# 📊 STORY CARD: AVANCE DE PUBLICACIÓN
 # ─────────────────────────────────────────────
+
+# 🔥 cálculo (ya lo tienes, pero lo dejamos explícito)
+porc_publicacion = (
+    distritos_publicando / total_distritos * 100
+    if total_distritos else 0
+)
 
 st.markdown("""
 <style>
@@ -281,36 +287,78 @@ st.markdown("""
     padding: 18px 20px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.08);
     border-left: 6px solid #1a9e5c;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
 }
 
 .metric-story-title {
     font-size: 0.85rem;
     font-weight: 700;
     color: #1a2540;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     text-transform: uppercase;
 }
 
-.metric-story-value {
-    font-size: 2.2rem;
+.metric-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.metric-main {
+    font-size: 2.3rem;
     font-weight: 800;
     color: #1a2540;
 }
 
-.metric-story-sub {
+.metric-percent {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1a9e5c;
+}
+
+.metric-sub {
     font-size: 0.8rem;
     color: #6b7a99;
-    margin-top: 4px;
+    margin-top: 6px;
+}
+
+/* 🔥 barra */
+.progress-container {
+    margin-top: 12px;
+    background-color: #e6ecf5;
+    border-radius: 10px;
+    height: 10px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 10px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #56a3ff, #1a9e5c);
 }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown(f"""
 <div class="metric-story-card">
-    <div class="metric-story-title">📍 Distritos donde se realiza la publicación</div>
-    <div class="metric-story-value">{distritos_publicando}</div>
-    <div class="metric-story-sub">de {total_distritos} distritos totales</div>
+
+    <div class="metric-story-title">
+        📍 Avance de publicación de LPI
+    </div>
+
+    <div class="metric-row">
+        <div class="metric-main">{distritos_publicando}</div>
+        <div class="metric-percent">{porc_publicacion:.1f}%</div>
+    </div>
+
+    <div class="metric-sub">
+        de {total_distritos} distritos a nivel nacional
+    </div>
+
+    <div class="progress-container">
+        <div class="progress-bar" style="width:{porc_publicacion}%"></div>
+    </div>
+
 </div>
 """, unsafe_allow_html=True)
 
