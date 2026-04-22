@@ -73,8 +73,6 @@ def cargar_datos(url: str) -> pd.DataFrame:
 
 df_raw = cargar_datos(GOOGLE_SHEETS_URL)
 
-st.write("COLUMNAS:", df_raw.columns.tolist())
-
 # ─────────────────────────────────────────────
 # LIMPIEZA
 # ─────────────────────────────────────────────
