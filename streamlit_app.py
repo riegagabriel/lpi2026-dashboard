@@ -339,28 +339,52 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown(f"""
-<div class="metric-story-card">
+import streamlit.components.v1 as components
 
-    <div class="metric-story-title">
+components.html(f"""
+<div style="
+    background:white;
+    border-radius:12px;
+    padding:18px 20px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.08);
+    border-left:6px solid #1a9e5c;
+    font-family:sans-serif;
+    margin-bottom:14px;
+">
+
+    <div style="font-size:0.85rem;font-weight:700;color:#1a2540;margin-bottom:10px;">
         📍 Avance de publicación de LPI
     </div>
 
-    <div class="metric-row">
-        <div class="metric-main">{distritos_publicando}</div>
-        <div class="metric-percent">{porc_publicacion:.1f}%</div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+        <div style="font-size:2.3rem;font-weight:800;">
+            {distritos_publicando}
+        </div>
+        <div style="font-size:1.1rem;font-weight:600;color:#1a9e5c;">
+            {porc_publicacion:.1f}%
+        </div>
     </div>
 
-    <div class="metric-sub">
+    <div style="font-size:0.8rem;color:#6b7a99;margin-top:6px;">
         de {total_distritos} distritos a nivel nacional
     </div>
 
-    <div class="progress-container">
-        <div class="progress-bar" style="width:{porc_publicacion}%"></div>
+    <div style="
+        margin-top:12px;
+        background:#e6ecf5;
+        border-radius:10px;
+        height:10px;
+        overflow:hidden;
+    ">
+        <div style="
+            width:{porc_publicacion}%;
+            height:10px;
+            background:linear-gradient(90deg,#56a3ff,#1a9e5c);
+        "></div>
     </div>
 
 </div>
-""", unsafe_allow_html=True)
+""", height=140)
 
 # ─────────────────────────────────────────────
 # FILA PRINCIPAL: MAPA + GRÁFICOS
