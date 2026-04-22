@@ -56,10 +56,7 @@ st.markdown("""
 # ─────────────────────────────────────────────
 # CARGA DE DATOS
 # ─────────────────────────────────────────────
-GOOGLE_SHEETS_URL = (
-    "https://docs.google.com/spreadsheets/d/e/"
-    "2PACX-1vTZg_SVgWbOOH6lIVBHZL-f6Xn2798eK7xE6IDGMdALdYmpQ6skscAq5xjfumiXvJHHLSapPA7A_tKV"
-    "/pub?output=csv"
+GOOGLE_SHEETS_URL = ("https://docs.google.com/spreadsheets/d/e/2PACX-1vTZg_SVgWbOOH6lIVBHZL-f6Xn2798eK7xE6IDGMdALdYmpQ6skscAq5xjfumiXvJHHLSapPA7A_tKV/pub?gid=0&single=true&output=csv"
 )
 
 @st.cache_data(ttl=30)
