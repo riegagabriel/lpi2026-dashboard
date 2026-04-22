@@ -137,6 +137,7 @@ st.markdown("""
 # ─────────────────────────────────────────────
 st.markdown('<div class="filter-bar">', unsafe_allow_html=True)
 st.markdown("**🔎 Filtros globales**")
+st.caption("ℹ️ Los filtros aplicados afectan únicamente a los indicadores, gráficos y tablas dinámicas mostradas a continuación. Nuestros indicadores generales se mantienen a nivel nacional.")
 
 fcol1, fcol2 = st.columns([1.6, 1])
 
