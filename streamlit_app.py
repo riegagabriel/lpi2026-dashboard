@@ -76,7 +76,7 @@ df_raw = cargar_datos(GOOGLE_SHEETS_URL)
 def limpiar(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df.columns = df.columns.str.strip()
-    for c in ["# DE CIUDADANOS ENCUESTADOS",
+    for c in ["# DE CIUDADANOS QUE SE HAN ACERCADO A LA LPI",
               "# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)",
               "# DE TACHAS Y RECLAMOS"]:
         if c in df.columns:
@@ -254,7 +254,7 @@ with k5:
     st.markdown(f"""
     <div class="kpi-card green">
       <div class="kpi-value">{int(ciudadanos_enc) if not pd.isna(ciudadanos_enc) else '—'}</div>
-      <div class="kpi-label">Ciudadanos Atendidos</div>
+      <div class="kpi-label">Ciudadanos que se han acerdado a la LPI</div>
       <div class="kpi-sub">total nacional</div>
     </div>""", unsafe_allow_html=True)
 
@@ -529,7 +529,7 @@ df_mostrar = df_tab.rename(columns={
     "DESCRIPCION":  "PERSONAL",
     "JNE":          "¿Presencia del JNE?",
     "FECHA_INICIO": "F. Inicio",
-    "CIUDADANOS":   "Ciudadanos encuestados",
+    "CIUDADANOS":   "# de Ciudadanos que se han acercado a LPI",
     "ACTAS_DEF":    "# Actas Def.",
     "TACHAS":       "# Tachas/Reclamos",
 })[["DEPARTAMENTO","PROVINCIA","DISTRITO","PERSONAL",
