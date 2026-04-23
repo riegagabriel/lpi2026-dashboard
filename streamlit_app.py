@@ -202,7 +202,7 @@ df_dist_filtrado = (
         FECHA_INICIO=("FECHA DE INICIO DE PUBLICACIÓN", "min"),
         CIUDADANOS  =("# DE CIUDADANOS QUE SE HAN ACERCADO A LA LPI", "sum"),
         ACTAS_DEF   =("# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)", "sum"),
-        TACHAS      =("# DE TACHAS Y RECLAMOS",         "sum"),
+        TACHAS      =("# DE TACHAS Y ELIMINACIÓN",         "sum"),
         DEPARTAMENTO=("DEPARTAMENTO",                   "first"),
         PROVINCIA   =("PROVINCIA",                      "first"),
         DISTRITO    =("DISTRITO",                       "first"),
@@ -272,7 +272,7 @@ with k7:
     st.markdown(f"""
     <div class="kpi-card green">
       <div class="kpi-value">{int(tachas_rec) if not pd.isna(tachas_rec) else '—'}</div>
-      <div class="kpi-label">Tachas y Reclamos</div>
+      <div class="kpi-label">Tachas y Eliminación</div>
       <div class="kpi-sub">presentados</div>
     </div>""", unsafe_allow_html=True)
 
