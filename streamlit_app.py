@@ -405,6 +405,59 @@ with col_charts:
         unsafe_allow_html=True
     )
 
+    # ─────────────────────────────────────────────
+# Gráfico: Lugar de publicación (Barras horizontales)
+# ─────────────────────────────────────────────
+
+df_filtrado["LUGAR DE LA PUBLICACIÓN"] = (
+    df_filtrado["LUGAR DE LA PUBLICACIÓN"]
+    .astype(str)
+    .str.strip()
+    .str.title()
+)
+
+df_filtrado["LUGAR DE LA PUBLICACIÓN"] = df_filtrado["LUGAR DE LA PUBLICACIÓN"].replace({
+    "Local Vecinal ": "Local Vecinal",
+    "Comunidad Vecinal ": "Comunidad Vecinal",
+    "Sub Prefectura": "Subprefectura",
+})
+
+lugar_counts = (
+    df_filtrado["LUGAR DE LA PUBLICACIÓN"]
+    .fillna("Sin información")
+    .value_counts()
+    .reset_index()
+)
+
+lugar_counts.columns = ["Lugar", "Cantidad"]
+
+otros = lugar_counts[lugar_counts["Lugar"] == "Otros"]
+resto = lugar_counts[lugar_counts["Lugar"] != "Otros"]
+resto = resto.sort_values("Cantidad", ascending=True)
+
+lugar_counts = pd.concat([resto, otros], ignore_index=True)
+
+fig_lugar = px.bar(
+    lugar_counts,
+    x="Cantidad",
+    y="Lugar",
+    orientation="h",
+    title="Lugar de la publicación",
+    color="Cantidad",
+    color_continuous_scale="Blues"
+)
+
+fig_lugar.update_layout(
+    height=350,
+    margin=dict(l=10, r=10, t=40, b=10),
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    yaxis_title="",
+    xaxis_title="N° de publicaciones",
+)
+
+st.plotly_chart(fig_lugar, use_container_width=True)
+
     # Gráfico 1: Presencia JNE
     jne_counts = (
         df_dist_filtrado["JNE"]
