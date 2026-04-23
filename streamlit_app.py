@@ -198,7 +198,7 @@ df_dist_filtrado = (
         JNE         =("PRESENCIA DEL JNE",              "first"),
         SE_REALIZO  =("¿SE REALIZÓ LA PUBLICACIÓN?",    "first"),
         FECHA_INICIO=("FECHA DE INICIO DE PUBLICACIÓN", "min"),
-        CIUDADANOS  =("# DE CIUDADANOS ENCUESTADOS",    "sum"),
+        CIUDADANOS  =("# de Ciudadanos que se han acercado a LPI",    "sum"),
         ACTAS_DEF   =("# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)", "sum"),
         TACHAS      =("# DE TACHAS Y RECLAMOS",         "sum"),
         DEPARTAMENTO=("DEPARTAMENTO",                   "first"),
@@ -534,7 +534,7 @@ df_mostrar = df_tab.rename(columns={
     "TACHAS":       "# Tachas/Reclamos",
 })[["DEPARTAMENTO","PROVINCIA","DISTRITO","PERSONAL",
     "¿Presencia del JNE?","F. Inicio",
-    "Ciudadanos encuestados","# Actas Def.","# Tachas/Reclamos"]].reset_index(drop=True)
+    "# de Ciudadanos que se han acercado a LPI","# Actas Def.","# Tachas/Reclamos"]].reset_index(drop=True)
 
 st.markdown(f"**{len(df_mostrar)} distritos** encontrados")
 st.dataframe(df_mostrar, use_container_width=True, height=380)
