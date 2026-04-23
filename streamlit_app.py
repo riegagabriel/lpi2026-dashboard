@@ -56,19 +56,19 @@ st.markdown("""
 # ─────────────────────────────────────────────
 # CARGA DE DATOS
 # ─────────────────────────────────────────────
-GOOGLE_SHEETS_URL = ("https://docs.google.com/spreadsheets/d/e/2PACX-1vTZg_SVgWbOOH6lIVBHZL-f6Xn2798eK7xE6IDGMdALdYmpQ6skscAq5xjfumiXvJHHLSapPA7A_tKV/pub?gid=0&single=true&output=csv"
-)
+
+RUTA_EXCEL = "MONITOREO_LPI.xlsx"
 
 @st.cache_data(ttl=30)
-def cargar_datos(url: str) -> pd.DataFrame:
+def cargar_datos(ruta: str) -> pd.DataFrame:
     try:
-        df = pd.read_csv(url, dtype=str, skiprows=1)
+        df = pd.read_excel(ruta, dtype=str)
     except Exception as e:
-        st.error(f"No se pudo cargar la hoja: {e}")
+        st.error(f"No se pudo cargar el archivo Excel: {e}")
         st.stop()
     return df
 
-df_raw = cargar_datos(GOOGLE_SHEETS_URL)
+df_raw = cargar_datos(RUTA_EXCEL)
 
 # ─────────────────────────────────────────────
 # LIMPIEZA
