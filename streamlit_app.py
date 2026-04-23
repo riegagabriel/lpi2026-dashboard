@@ -77,8 +77,10 @@ def limpiar(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df.columns = df.columns.str.strip()
     for c in ["# DE CIUDADANOS QUE SE HAN ACERCADO A LA LPI",
+              "# DE CIUDADANOS QUE SE LES HA APLICADO LA ENCUESTA CIUDADANA",
               "# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)",
-              "# DE TACHAS Y RECLAMOS"]:
+              "# DE TACHAS Y ELIMINACIÓN",
+              "# DE RECLAMOS"]:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors="coerce")
     for c in ["FECHA DE INICIO DE PUBLICACIÓN",
