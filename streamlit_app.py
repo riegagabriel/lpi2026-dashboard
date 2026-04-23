@@ -423,12 +423,12 @@ with col_charts:
     })
 
     lugar_counts = (
-        df_filtrado["LUGAR DE LA PUBLICACIÓN"]
-        .fillna("Sin información")
-        .value_counts()
-        .reset_index()
+    df_filtrado["LUGAR DE LA PUBLICACIÓN"]
+    .replace("", pd.NA)
+    .dropna()
+    .value_counts()
+    .reset_index()
     )
-
     lugar_counts.columns = ["Lugar", "Cantidad"]
 
     otros = lugar_counts[lugar_counts["Lugar"] == "Otros"]
