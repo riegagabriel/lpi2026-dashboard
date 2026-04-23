@@ -62,14 +62,14 @@ RUTA_EXCEL = "MONITOREO_LPI.xlsx"
 @st.cache_data(ttl=30)
 def cargar_datos(ruta: str) -> pd.DataFrame:
     try:
-        df = pd.read_excel(ruta, dtype=str)
+        df = pd.read_excel(ruta, dtype=str, skiprows=1)  # 👈 mantenlo por ahora
+        df.columns = df.columns.str.strip()              # 👈 limpia espacios
     except Exception as e:
-        st.error(f"No se pudo cargar el archivo Excel: {e}")
+        st.error(f"No se pudo cargar el Excel: {e}")
         st.stop()
     return df
 
 df_raw = cargar_datos(RUTA_EXCEL)
-
 # ─────────────────────────────────────────────
 # LIMPIEZA
 # ─────────────────────────────────────────────
