@@ -57,37 +57,65 @@ st.markdown("""
 # CARGA DE DATOS
 # ─────────────────────────────────────────────
 
-RUTA_EXCEL = "MONITOREO_LPI.xlsx"
+RUTA_EXCEL          = "MONITOREO_LPI.xlsx"
+RUTA_TOTALES        = "totales_x_distrito.xlsx"
 
 @st.cache_data(ttl=30)
 def cargar_datos(ruta: str) -> pd.DataFrame:
     try:
-        df = pd.read_excel(ruta, dtype=str, skiprows=1)  # 👈 mantenlo por ahora
-        df.columns = df.columns.str.strip()              # 👈 limpia espacios
+        df = pd.read_excel(ruta, dtype=str, skiprows=1)
+        df.columns = df.columns.str.strip()
     except Exception as e:
         st.error(f"No se pudo cargar el Excel: {e}")
         st.stop()
     return df
 
-df_raw = cargar_datos(RUTA_EXCEL)
+@st.cache_data(ttl=30)
+def cargar_totales(ruta: str) -> pd.DataFrame:
+    try:
+        df = pd.read_excel(ruta, dtype=str)
+        df.columns = df.columns.str.strip()
+    except Exception as e:
+        st.error(f"No se pudo cargar totales_x_distrito: {e}")
+        st.stop()
+    # Convertir columnas numéricas
+    for c in ["CANT_DNIS_DEFUNCION", "CANT_RECLAMOS", "CANT_ENC_CIUDADANA"]:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0).astype(int)
+    # Limpiar ubigeo para el merge
+    df["UBIGEO"] = df["UBIGEO"].astype(str).str.strip().str.zfill(6)
+    return df
+
+df_raw      = cargar_datos(RUTA_EXCEL)
+df_totales  = cargar_totales(RUTA_TOTALES)
+
 # ─────────────────────────────────────────────
-# LIMPIEZA
+# KPIs GLOBALES desde totales_x_distrito
+# (toda la base, sin filtros — fijos en cabecera)
+# ─────────────────────────────────────────────
+KPI_ACTAS_DEF_GLOBAL = int(df_totales["CANT_DNIS_DEFUNCION"].sum())
+KPI_TACHAS_GLOBAL    = int(df_totales["CANT_RECLAMOS"].sum())
+
+# ─────────────────────────────────────────────
+# LIMPIEZA DEL MONITOREO
 # ─────────────────────────────────────────────
 def limpiar(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df.columns = df.columns.str.strip()
+
+    # Solo conservamos la columna de ciudadanos del monitoreo;
+    # actas y tachas ahora vienen de totales_x_distrito
     for c in ["# DE CIUDADANOS QUE SE HAN ACERCADO A LA LPI",
-              "# DE CIUDADANOS QUE SE LES HA APLICADO LA ENCUESTA CIUDADANA",
-              "# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)",
-              "# DE TACHAS Y ELIMINACIÓN",
-              "# DE RECLAMOS"]:
+              "# DE CIUDADANOS QUE SE LES HA APLICADO LA ENCUESTA CIUDADANA"]:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors="coerce")
+
     for c in ["FECHA DE INICIO DE PUBLICACIÓN",
               "FECHA DE FIN DE PUBLICACIÓN",
               "FECHA DE ARRIBO AL DISTRITO"]:
         if c in df.columns:
             df[c] = pd.to_datetime(df[c], errors="coerce", dayfirst=True)
+
     if "DESCRIPCIÓN" in df.columns:
         df["DESCRIPCIÓN"] = df["DESCRIPCIÓN"].str.strip().str.upper()
     if "PRESENCIA DEL JNE" in df.columns:
@@ -97,6 +125,7 @@ def limpiar(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 df = limpiar(df_raw)
+
 # ─────────────────────────────────────────────
 # LIMPIEZA DE FECHAS INVÁLIDAS
 # ─────────────────────────────────────────────
@@ -114,7 +143,9 @@ df = df[
 df["DEPARTAMENTO"] = df["DEPARTAMENTO"].str.upper().str.strip()
 df["DISTRITO"]     = df["DISTRITO"].str.strip()
 df["PROVINCIA"]    = df["PROVINCIA"].str.strip()
-df["DIST_KEY"]     = df["UBIGEO RENIEC"].astype(str).str.strip()
+
+# UBIGEO RENIEC → clave de merge (rellenar a 6 dígitos con ceros)
+df["DIST_KEY"] = df["UBIGEO RENIEC"].astype(str).str.strip().str.zfill(6)
 
 # ─────────────────────────────────────────────
 # KPIs FIJOS — toda la base, 1 fila por distrito
@@ -196,24 +227,40 @@ df_dist_filtrado = (
     df_filtrado.sort_values("DESCRIPCIÓN")
     .groupby("DIST_KEY", as_index=False)
     .agg(
-        DESCRIPCION =("DESCRIPCIÓN",                    "first"),
-        JNE         =("PRESENCIA DEL JNE",              "first"),
-        SE_REALIZO  =("¿SE REALIZÓ LA PUBLICACIÓN?",    "first"),
-        FECHA_INICIO=("FECHA DE INICIO DE PUBLICACIÓN", "min"),
-        CIUDADANOS  =("# DE CIUDADANOS QUE SE HAN ACERCADO A LA LPI", "sum"),
-        ACTAS_DEF   =("# DE ACTAS DE DEFUNCION (ENTREGADAS POR LA MUNICIPALIDAD)", "sum"),
-        TACHAS      =("# DE TACHAS Y ELIMINACIÓN",         "sum"),
-        DEPARTAMENTO=("DEPARTAMENTO",                   "first"),
-        PROVINCIA   =("PROVINCIA",                      "first"),
-        DISTRITO    =("DISTRITO",                       "first"),
+        DESCRIPCION  = ("DESCRIPCIÓN",                    "first"),
+        JNE          = ("PRESENCIA DEL JNE",              "first"),
+        SE_REALIZO   = ("¿SE REALIZÓ LA PUBLICACIÓN?",    "first"),
+        FECHA_INICIO = ("FECHA DE INICIO DE PUBLICACIÓN", "min"),
+        CIUDADANOS   = ("# DE CIUDADANOS QUE SE HAN ACERCADO A LA LPI", "sum"),
+        DEPARTAMENTO = ("DEPARTAMENTO",                   "first"),
+        PROVINCIA    = ("PROVINCIA",                      "first"),
+        DISTRITO     = ("DISTRITO",                       "first"),
     )
 )
 
-# KPIs dinámicos
+# ─────────────────────────────────────────────
+# MERGE con totales_x_distrito (por UBIGEO)
+# ─────────────────────────────────────────────
+# df_totales usa columna "UBIGEO"; df_dist_filtrado usa "DIST_KEY" (= UBIGEO RENIEC)
+df_dist_filtrado = df_dist_filtrado.merge(
+    df_totales[["UBIGEO", "CANT_DNIS_DEFUNCION", "CANT_RECLAMOS"]],
+    left_on="DIST_KEY",
+    right_on="UBIGEO",
+    how="left",
+).drop(columns=["UBIGEO"])
+
+# Rellenar NaN en caso de distritos sin coincidencia
+df_dist_filtrado["CANT_DNIS_DEFUNCION"] = df_dist_filtrado["CANT_DNIS_DEFUNCION"].fillna(0).astype(int)
+df_dist_filtrado["CANT_RECLAMOS"]       = df_dist_filtrado["CANT_RECLAMOS"].fillna(0).astype(int)
+
+# ─────────────────────────────────────────────
+# KPIs dinámicos (afectados por filtros)
+# ─────────────────────────────────────────────
 distritos_publicando = (df_dist_filtrado["SE_REALIZO"] == "SI").sum()
 ciudadanos_enc       = df_dist_filtrado["CIUDADANOS"].sum()
-actas_def            = df_dist_filtrado["ACTAS_DEF"].sum()
-tachas_rec           = df_dist_filtrado["TACHAS"].sum()
+# Actas y tachas: sum de los valores mergeados para los distritos filtrados
+actas_def_filtrado   = df_dist_filtrado["CANT_DNIS_DEFUNCION"].sum()
+tachas_filtrado      = df_dist_filtrado["CANT_RECLAMOS"].sum()
 
 # ─────────────────────────────────────────────
 # FILA ÚNICA DE KPIs (4 fijos + 3 dinámicos)
@@ -256,24 +303,24 @@ with k5:
     st.markdown(f"""
     <div class="kpi-card green">
       <div class="kpi-value">{int(ciudadanos_enc) if not pd.isna(ciudadanos_enc) else '—'}</div>
-      <div class="kpi-label">Ciudadanos que se han acerdado a la LPI</div>
+      <div class="kpi-label">Ciudadanos que se han acercado a la LPI</div>
       <div class="kpi-sub">total nacional</div>
     </div>""", unsafe_allow_html=True)
 
 with k6:
     st.markdown(f"""
     <div class="kpi-card green">
-      <div class="kpi-value">{int(actas_def) if not pd.isna(actas_def) else '—'}</div>
+      <div class="kpi-value">{actas_def_filtrado:,}</div>
       <div class="kpi-label">Actas de Defunción</div>
-      <div class="kpi-sub">entregadas municipalidad</div>
+      <div class="kpi-sub">DNIs fallecidos reportados</div>
     </div>""", unsafe_allow_html=True)
 
 with k7:
     st.markdown(f"""
     <div class="kpi-card green">
-      <div class="kpi-value">{int(tachas_rec) if not pd.isna(tachas_rec) else '—'}</div>
+      <div class="kpi-value">{tachas_filtrado:,}</div>
       <div class="kpi-label">Tachas y Eliminación</div>
-      <div class="kpi-sub">presentados</div>
+      <div class="kpi-sub">reclamos presentados</div>
     </div>""", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -410,7 +457,6 @@ with col_charts:
     # ─────────────────────────────────────────────
     # Gráfico: Lugar de publicación (Barras horizontales)
     # ─────────────────────────────────────────────
-
     df_filtrado["LUGAR DE LA PUBLICACIÓN"] = (
         df_filtrado["LUGAR DE LA PUBLICACIÓN"]
         .astype(str)
@@ -425,11 +471,11 @@ with col_charts:
     })
 
     lugar_counts = (
-    df_filtrado["LUGAR DE LA PUBLICACIÓN"]
-    .replace("", pd.NA)
-    .dropna()
-    .value_counts()
-    .reset_index()
+        df_filtrado["LUGAR DE LA PUBLICACIÓN"]
+        .replace("", pd.NA)
+        .dropna()
+        .value_counts()
+        .reset_index()
     )
     lugar_counts.columns = ["Lugar", "Cantidad"]
 
@@ -559,6 +605,7 @@ else:
 
 # ─────────────────────────────────────────────
 # TABLA DETALLE — dinámica, 1 fila por distrito
+# El merge ya fue aplicado arriba en df_dist_filtrado
 # ─────────────────────────────────────────────
 st.markdown("<br>", unsafe_allow_html=True)
 st.markdown(
@@ -585,16 +632,16 @@ if sel_prov:
     df_tab = df_tab[df_tab["PROVINCIA"].isin(sel_prov)]
 
 df_mostrar = df_tab.rename(columns={
-    "DESCRIPCION":  "PERSONAL",
-    "JNE":          "¿Presencia del JNE?",
-    "FECHA_INICIO": "F. Inicio",
-    "CIUDADANOS":   "# de Ciudadanos que se han acercado a LPI",  # ✅ CORRECTO
-    "ACTAS_DEF":    "# Actas Def.",
-    "TACHAS":       "# Tachas/Reclamos",
+    "DESCRIPCION":          "PERSONAL",
+    "JNE":                  "¿Presencia del JNE?",
+    "FECHA_INICIO":         "F. Inicio",
+    "CIUDADANOS":           "# Ciudadanos acercados a LPI",
+    "CANT_DNIS_DEFUNCION":  "# Actas Def.",
+    "CANT_RECLAMOS":        "# Tachas/Reclamos",
 })[[
     "DEPARTAMENTO","PROVINCIA","DISTRITO","PERSONAL",
     "¿Presencia del JNE?","F. Inicio",
-    "# de Ciudadanos que se han acercado a LPI",
+    "# Ciudadanos acercados a LPI",
     "# Actas Def.","# Tachas/Reclamos"
 ]].reset_index(drop=True)
 
