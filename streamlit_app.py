@@ -103,11 +103,11 @@ def limpiar(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df.columns = df.columns.str.strip()
 
-    # Solo conservamos la columna de ciudadanos del monitoreo;
-    # actas y tachas ahora vienen de totales_x_distrito
-    for c in ["# DE CIUDADANOS QUE SE HAN ACERCADO A LA LPI",
-              "# DE CIUDADANOS QUE SE LES HA APLICADO LA ENCUESTA CIUDADANA"]:
-        if c in df.columns:
+    # Columnas diarias de ciudadanos acercados a la LPI + encuesta ciudadana
+    # Las columnas antiguas unificadas ya no existen; ahora son por día
+    for c in df.columns:
+        if "CIUDADANOS QUE SE HAN ACERCADO A LA LPI" in c or \
+           "CIUDADANOS QUE SE LES HA APLICADO LA ENCUESTA" in c:
             df[c] = pd.to_numeric(df[c], errors="coerce")
 
     for c in ["FECHA DE INICIO DE PUBLICACIÓN",
@@ -162,6 +162,29 @@ KPI_DRE                = (df_dist_global["DESCRIPCION"] == "PERSONAL DRE").sum()
 KPI_AGENCIA            = (df_dist_global["DESCRIPCION"] == "EN AGENCIA").sum()
 
 # ─────────────────────────────────────────────
+# COLUMNAS DIARIAS DE CIUDADANOS
+# Detectamos automáticamente todas las columnas del tipo
+# "# DE CIUDADANOS QUE SE HAN ACERCADO A LA LPI (DD/MM)"
+# y construimos un mapa  "DD/MM/AAAA" → nombre_columna
+# para que el filtro de fecha sepa cuál columna sumar.
+# ─────────────────────────────────────────────
+import re as _re
+
+COLS_CIUDADANOS_DIARIAS = [
+    c for c in df.columns
+    if "CIUDADANOS QUE SE HAN ACERCADO A LA LPI" in c
+]
+
+# mapa  "22/04/2026" → "# DE CIUDADANOS QUE SE HAN ACERCADO A LA LPI (22/04)"
+_MAPA_FECHA_COL = {}
+for _col in COLS_CIUDADANOS_DIARIAS:
+    _m = _re.search(r"\((\d{2}/\d{2})\)", _col)
+    if _m:
+        _dia_mes = _m.group(1)          # "22/04"
+        _fecha_completa = f"{_dia_mes}/2026"   # "22/04/2026"
+        _MAPA_FECHA_COL[_fecha_completa] = _col
+
+# ─────────────────────────────────────────────
 # ENCABEZADO
 # ─────────────────────────────────────────────
 st.markdown("""
@@ -183,7 +206,7 @@ st.markdown('<div class="filter-bar">', unsafe_allow_html=True)
 st.markdown("**🔎 Filtros globales**")
 st.caption("ℹ️ Los filtros aplicados afectan únicamente a los indicadores, gráficos y tablas dinámicas mostradas a continuación. Nuestros indicadores generales se mantienen a nivel nacional.")
 
-fcol1, fcol2 = st.columns([1.6, 1])
+fcol1, fcol2, fcol3 = st.columns([1.6, 0.8, 0.8])
 
 with fcol1:
     fechas_disponibles = sorted(
@@ -202,6 +225,21 @@ with fcol2:
         "👁️ Presencia del JNE",
         ["Todos", "Sí", "No"], horizontal=True, key="filtro_jne",
     )
+
+with fcol3:
+    # Opciones: "Total acumulado" + cada día que tenga columna
+    _dias_disponibles = sorted(_MAPA_FECHA_COL.keys())   # ["22/04/2026", "23/04/2026", …]
+    _etiquetas_dia = ["Total acumulado"] + [d[:5] for d in _dias_disponibles]  # "22/04", …
+    sel_dia_ciudadanos_label = st.radio(
+        "👥 Ciudadanos — día",
+        _etiquetas_dia, horizontal=True, key="filtro_dia_ciudadanos",
+    )
+    # Resolver cuál columna usar
+    if sel_dia_ciudadanos_label == "Total acumulado":
+        _COL_CIUDADANOS_ACTIVA = None          # señal: sumar todas
+    else:
+        _fecha_completa_sel = f"{sel_dia_ciudadanos_label}/2026"
+        _COL_CIUDADANOS_ACTIVA = _MAPA_FECHA_COL.get(_fecha_completa_sel)  # columna específica
 
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -223,20 +261,40 @@ if sel_jne != "Todos":
     ]
 
 # 1 fila por distrito dentro del conjunto filtrado
+# Preparamos el dict de agregaciones base
+_agg_dict = dict(
+    DESCRIPCION  = ("DESCRIPCIÓN",                    "first"),
+    JNE          = ("PRESENCIA DEL JNE",              "first"),
+    SE_REALIZO   = ("¿SE REALIZÓ LA PUBLICACIÓN?",    "first"),
+    FECHA_INICIO = ("FECHA DE INICIO DE PUBLICACIÓN", "min"),
+    DEPARTAMENTO = ("DEPARTAMENTO",                   "first"),
+    PROVINCIA    = ("PROVINCIA",                      "first"),
+    DISTRITO     = ("DISTRITO",                       "first"),
+)
+# Añadir suma de cada columna diaria de ciudadanos
+for _c in COLS_CIUDADANOS_DIARIAS:
+    _alias = "CIU_" + _re.sub(r"[^0-9]", "", _c)   # clave única p.ej. "CIU_2204"
+    _agg_dict[_alias] = (_c, "sum")
+
 df_dist_filtrado = (
     df_filtrado.sort_values("DESCRIPCIÓN")
     .groupby("DIST_KEY", as_index=False)
-    .agg(
-        DESCRIPCION  = ("DESCRIPCIÓN",                    "first"),
-        JNE          = ("PRESENCIA DEL JNE",              "first"),
-        SE_REALIZO   = ("¿SE REALIZÓ LA PUBLICACIÓN?",    "first"),
-        FECHA_INICIO = ("FECHA DE INICIO DE PUBLICACIÓN", "min"),
-        CIUDADANOS   = ("# DE CIUDADANOS QUE SE HAN ACERCADO A LA LPI", "sum"),
-        DEPARTAMENTO = ("DEPARTAMENTO",                   "first"),
-        PROVINCIA    = ("PROVINCIA",                      "first"),
-        DISTRITO     = ("DISTRITO",                       "first"),
-    )
+    .agg(**_agg_dict)
 )
+
+# Columna CIUDADANOS_TOTAL = suma de todos los días
+_alias_cols = ["CIU_" + _re.sub(r"[^0-9]", "", c) for c in COLS_CIUDADANOS_DIARIAS]
+df_dist_filtrado["CIUDADANOS_TOTAL"] = (
+    df_dist_filtrado[_alias_cols].fillna(0).sum(axis=1).astype(int)
+)
+
+# Columna CIUDADANOS (la que usa el KPI) según filtro de día
+if _COL_CIUDADANOS_ACTIVA is None:
+    # Total acumulado
+    df_dist_filtrado["CIUDADANOS"] = df_dist_filtrado["CIUDADANOS_TOTAL"]
+else:
+    _alias_activa = "CIU_" + _re.sub(r"[^0-9]", "", _COL_CIUDADANOS_ACTIVA)
+    df_dist_filtrado["CIUDADANOS"] = df_dist_filtrado[_alias_activa].fillna(0).astype(int)
 
 # ─────────────────────────────────────────────
 # MERGE con totales_x_distrito (por UBIGEO)
@@ -300,11 +358,15 @@ with k4:
     </div>""", unsafe_allow_html=True)
 
 with k5:
+    _kpi_ciu_sub = (
+        f"día {sel_dia_ciudadanos_label}" if sel_dia_ciudadanos_label != "Total acumulado"
+        else "total acumulado"
+    )
     st.markdown(f"""
     <div class="kpi-card green">
       <div class="kpi-value">{int(ciudadanos_enc) if not pd.isna(ciudadanos_enc) else '—'}</div>
-      <div class="kpi-label">Ciudadanos que se han acercado a la LPI</div>
-      <div class="kpi-sub">total nacional</div>
+      <div class="kpi-label">Ciudadanos acercados a la LPI</div>
+      <div class="kpi-sub">{_kpi_ciu_sub}</div>
     </div>""", unsafe_allow_html=True)
 
 with k6:
@@ -631,19 +693,30 @@ if sel_dept:
 if sel_prov:
     df_tab = df_tab[df_tab["PROVINCIA"].isin(sel_prov)]
 
-df_mostrar = df_tab.rename(columns={
-    "DESCRIPCION":          "PERSONAL",
-    "JNE":                  "¿Presencia del JNE?",
-    "FECHA_INICIO":         "F. Inicio",
-    "CIUDADANOS":           "# Ciudadanos acercados a LPI",
-    "CANT_DNIS_DEFUNCION":  "# Actas Def.",
-    "CANT_RECLAMOS":        "# Tachas/Reclamos",
-})[[
+_cols_renombrar = {
+    "DESCRIPCION":         "PERSONAL",
+    "JNE":                 "¿Presencia del JNE?",
+    "FECHA_INICIO":        "F. Inicio",
+    "CIUDADANOS_TOTAL":    "# Ciudadanos (total)",
+    "CANT_DNIS_DEFUNCION": "# Actas Def.",
+    "CANT_RECLAMOS":       "# Tachas/Reclamos",
+}
+_cols_mostrar = [
     "DEPARTAMENTO","PROVINCIA","DISTRITO","PERSONAL",
     "¿Presencia del JNE?","F. Inicio",
-    "# Ciudadanos acercados a LPI",
-    "# Actas Def.","# Tachas/Reclamos"
-]].reset_index(drop=True)
+    "# Ciudadanos (total)",
+]
+
+# Si hay filtro de día activo, añadir columna específica del día
+if _COL_CIUDADANOS_ACTIVA is not None:
+    _alias_activa = "CIU_" + _re.sub(r"[^0-9]", "", _COL_CIUDADANOS_ACTIVA)
+    _label_dia = f"# Ciudadanos ({sel_dia_ciudadanos_label})"
+    _cols_renombrar[_alias_activa] = _label_dia
+    _cols_mostrar.append(_label_dia)
+
+_cols_mostrar += ["# Actas Def.", "# Tachas/Reclamos"]
+
+df_mostrar = df_tab.rename(columns=_cols_renombrar)[_cols_mostrar].reset_index(drop=True)
 
 st.markdown(f"**{len(df_mostrar)} distritos** encontrados")
 st.dataframe(df_mostrar, use_container_width=True, height=380)
