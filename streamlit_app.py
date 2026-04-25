@@ -59,7 +59,7 @@ st.markdown("""
 # ─────────────────────────────────────────────
 
 RUTA_EXCEL   = "MONITOREO_LPI.xlsx"
-RUTA_TOTALES = "totales_x_distrito_por_fecha.xlsx"
+RUTA_TOTALES = "totales_x_distrito_por_fecha (2).xlsx"
 
 @st.cache_data(ttl=30)
 def cargar_datos(ruta: str) -> pd.DataFrame:
