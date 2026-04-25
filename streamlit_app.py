@@ -134,6 +134,7 @@ _df_global = totales_para_fecha("Todas las fechas")
 KPI_ACTAS_DEF_GLOBAL = int(_df_global["CANT_DNIS_DEFUNCION"].sum()) if "CANT_DNIS_DEFUNCION" in _df_global.columns else 0
 KPI_RECLAMOS_GLOBAL  = int(_df_global["CANT_RECLAMOS"].sum())       if "CANT_RECLAMOS"       in _df_global.columns else 0
 KPI_TACHAS_GLOBAL    = int(_df_global["CANT_TACHAS"].sum())         if "CANT_TACHAS"         in _df_global.columns else 0
+KPI_ENC_GLOBAL = int(_df_global["CANT_ENC_CIUDADANA"].sum()) if "CANT_ENC_CIUDADANA" in _df_global.columns else 0
 
 # ─────────────────────────────────────────────
 # LIMPIEZA DEL MONITOREO
@@ -338,6 +339,7 @@ ciudadanos_enc       = df_dist_filtrado["CIUDADANOS"].sum()
 actas_def_filtrado = int(df_dist_filtrado["CANT_DNIS_DEFUNCION"].sum()) if "CANT_DNIS_DEFUNCION" in df_dist_filtrado.columns else 0
 reclamos_filtrado  = int(df_dist_filtrado["CANT_RECLAMOS"].sum())       if "CANT_RECLAMOS"       in df_dist_filtrado.columns else 0
 tachas_filtrado    = int(df_dist_filtrado["CANT_TACHAS"].sum())         if "CANT_TACHAS"         in df_dist_filtrado.columns else 0
+enc_filtrado = int(df_dist_filtrado["CANT_ENC_CIUDADANA"].sum()) if "CANT_ENC_CIUDADANA" in df_dist_filtrado.columns else 0
 
 _kpi_totales_sub = (
     f"día {sel_fecha_label}" if sel_fecha_label != "Todas las fechas"
@@ -350,7 +352,7 @@ _kpi_totales_sub = (
 # k5:    ciudadanos (MONITOREO_LPI, dinámico)
 # k6–k8: defunción/reclamos/tachas (totales formularios, dinámico)
 # ─────────────────────────────────────────────
-k1, k2, k3, k4, k5, k6, k7, k8 = st.columns(8)
+k1, k2, k3, k4, k5, k6, k7, k8, k9 = st.columns(9)
 
 with k1:
     st.markdown(f"""
@@ -417,6 +419,13 @@ with k8:
     <div class="kpi-card orange">
       <div class="kpi-value">{tachas_filtrado:,}</div>
       <div class="kpi-label">Tachas / Eliminación</div>
+      <div class="kpi-sub">{_kpi_totales_sub}</div>
+    </div>""", unsafe_allow_html=True)
+with k9:
+    st.markdown(f"""
+    <div class="kpi-card blue3">
+      <div class="kpi-value">{enc_filtrado:,}</div>
+      <div class="kpi-label">Encuestas ciudadanas</div>
       <div class="kpi-sub">{_kpi_totales_sub}</div>
     </div>""", unsafe_allow_html=True)
 
@@ -709,12 +718,12 @@ _cols_renombrar = {
     "CANT_DNIS_DEFUNCION": "# Actas Def.",
     "CANT_RECLAMOS":       "# Reclamos",
     "CANT_TACHAS":         "# Tachas",
+    "CANT_ENC_CIUDADANA":  "# Enc. Ciudadana"
 }
 _cols_mostrar = [
     "DEPARTAMENTO", "PROVINCIA", "DISTRITO", "PERSONAL",
     "¿Presencia del JNE?", "F. Inicio",
-    "# Ciudadanos (total)",
-]
+    "# Ciudadanos (total)","# Enc. Ciudadana"]
 
 if _COL_CIUDADANOS_ACTIVA is not None:
     _alias_activa              = "CIU_" + _re.sub(r"[^0-9]", "", _COL_CIUDADANOS_ACTIVA)
