@@ -718,31 +718,46 @@ _cols_renombrar = {
     "CANT_DNIS_DEFUNCION": "# Actas Def.",
     "CANT_RECLAMOS":       "# Reclamos",
     "CANT_TACHAS":         "# Tachas",
-    "CANT_ENC_CIUDADANA":  "# Enc. Ciudadana"
+    "CANT_ENC_CIUDADANA":  "# Enc. Ciudadana",
 }
-_cols_mostrar = [
+
+df_mostrar = df_tab.rename(columns=_cols_renombrar)
+
+# Construir lista de columnas a mostrar, verificando existencia una a una
+_cols_mostrar = []
+for c in [
     "DEPARTAMENTO", "PROVINCIA", "DISTRITO", "PERSONAL",
     "¿Presencia del JNE?", "F. Inicio",
-    "# Ciudadanos (total)","# Enc. Ciudadana"]
+    "# Ciudadanos (total)",
+]:
+    if c in df_mostrar.columns:
+        _cols_mostrar.append(c)
 
+# Columna de ciudadanos por día seleccionado (si aplica)
 if _COL_CIUDADANOS_ACTIVA is not None:
-    _alias_activa              = "CIU_" + _re.sub(r"[^0-9]", "", _COL_CIUDADANOS_ACTIVA)
-    _label_dia                 = f"# Ciudadanos ({sel_dia_ciudadanos_label})"
-    _cols_renombrar[_alias_activa] = _label_dia
-    _cols_mostrar.append(_label_dia)
+    _alias_activa  = "CIU_" + _re.sub(r"[^0-9]", "", _COL_CIUDADANOS_ACTIVA)
+    _label_dia     = f"# Ciudadanos ({sel_dia_ciudadanos_label})"
+    # Renombrar solo si aún no fue renombrada (evitar duplicado)
+    if _alias_activa in df_mostrar.columns and _label_dia not in df_mostrar.columns:
+        df_mostrar = df_mostrar.rename(columns={_alias_activa: _label_dia})
+    if _label_dia in df_mostrar.columns and _label_dia not in _cols_mostrar:
+        _cols_mostrar.append(_label_dia)
 
-_cols_mostrar += ["# Actas Def.", "# Reclamos", "# Tachas", "# Enc. Ciudadana"]
+# Métricas de formularios — agregar solo si existen y no están duplicadas
+for col_label in ["# Actas Def.", "# Reclamos", "# Tachas", "# Enc. Ciudadana"]:
+    if col_label in df_mostrar.columns and col_label not in _cols_mostrar:
+        _cols_mostrar.append(col_label)
 
-df_mostrar    = df_tab.rename(columns=_cols_renombrar)
-_cols_mostrar = [c for c in _cols_mostrar if c in df_mostrar.columns]
-df_mostrar    = df_mostrar[_cols_mostrar].reset_index(drop=True)
+# Eliminar posibles duplicados de columnas en el df antes de renderizar
+df_mostrar = df_mostrar.loc[:, ~df_mostrar.columns.duplicated()]
+df_mostrar = df_mostrar[_cols_mostrar].reset_index(drop=True)
 
 _subtitulo_tabla = (
     f"datos del día {sel_fecha_label}"
     if sel_fecha_label != "Todas las fechas"
     else "datos acumulados"
 )
-st.markdown(f"**{len(df_mostrar)} distritos** encontrados · Actas, Reclamos, Tachas: {_subtitulo_tabla}")
+st.markdown(f"**{len(df_mostrar)} distritos** encontrados · Actas, Reclamos, Tachas y Encuestas: {_subtitulo_tabla}")
 st.dataframe(df_mostrar, use_container_width=True, height=380)
 
 # ─────────────────────────────────────────────
