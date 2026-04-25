@@ -709,7 +709,6 @@ _cols_renombrar = {
     "CANT_DNIS_DEFUNCION": "# Actas Def.",
     "CANT_RECLAMOS":       "# Reclamos",
     "CANT_TACHAS":         "# Tachas",
-    "CANT_ENC_CIUDADANA":  "# Enc. Ciudadana",
 }
 _cols_mostrar = [
     "DEPARTAMENTO", "PROVINCIA", "DISTRITO", "PERSONAL",
@@ -734,7 +733,7 @@ _subtitulo_tabla = (
     if sel_fecha_label != "Todas las fechas"
     else "datos acumulados"
 )
-st.markdown(f"**{len(df_mostrar)} distritos** encontrados · Actas, Reclamos, Tachas y Encuesta: {_subtitulo_tabla}")
+st.markdown(f"**{len(df_mostrar)} distritos** encontrados · Actas, Reclamos, Tachas: {_subtitulo_tabla}")
 st.dataframe(df_mostrar, use_container_width=True, height=380)
 
 # ─────────────────────────────────────────────
