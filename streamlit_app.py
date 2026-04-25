@@ -217,7 +217,7 @@ st.markdown("""
     <p>RENIEC Electoral · Dirección de Registro Electoral (DRE) · Panel de seguimiento de monitoreo</p>
   </div>
   <div style="text-align:right; font-size:0.78rem; opacity:0.85;">
-    Dashboard actualizado cada 30 seg
+    Dashboard a partir de cortes de información
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -744,6 +744,6 @@ st.markdown("""
             border-top:1px solid #e0e4ef;padding-top:10px;">
   RENIEC Electoral · Subdirección de Procedimiento Electoral y Georreferenciación (SDPEG)
   · Dirección de Registro Electoral (DRE)<br>
-  Datos actualizados automáticamente cada 30 seg
+  Datos actualizados a partir de cortes de información
 </div>
 """, unsafe_allow_html=True)
